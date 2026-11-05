@@ -1,0 +1,8 @@
+{
+  "name": "KasaVault — Manajemen Keuangan Pribadi Terenkripsi",
+  "description": "Aplikasi manajemen keuangan pribadi lengkap dengan pencatatan pemasukan, pengeluaran, tabungan, perencanaan anggaran, visualisasi grafik interaktif, sinkronisasi real-time antar perangkat, dan enkripsi end-to-end.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

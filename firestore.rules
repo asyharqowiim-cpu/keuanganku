@@ -1,0 +1,221 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Primitive Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // 3. Entity Validation Blueprints (Anti-Update-Gap)
+    function isValidTransaction(data, userId) {
+      return data.keys().hasAll([
+          'userId', 'type', 'category', 'amount', 'date', 'monthKey',
+          'account', 'title', 'encryptedPayload', 'isEncrypted', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'userId', 'type', 'category', 'amount', 'date', 'monthKey',
+          'account', 'title', 'encryptedPayload', 'isEncrypted', 'createdAt', 'updatedAt'
+        ])
+        && data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128
+        && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.userId == request.auth.uid && data.userId == userId
+        && data.type is string && data.type.size() <= 16 && (data.type == 'income' || data.type == 'expense')
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 64
+        && (data.amount is int || data.amount is float) && data.amount >= 0 && data.amount <= 1000000000000
+        && data.date is string && data.date.size() == 10 && data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.monthKey is string && data.monthKey.size() == 7 && data.monthKey.matches('^[0-9]{4}-[0-9]{2}$')
+        && data.account is string && data.account.size() >= 1 && data.account.size() <= 64
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.encryptedPayload is string && data.encryptedPayload.size() <= 4096
+        && data.isEncrypted is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSavingGoal(data, userId) {
+      return data.keys().hasAll([
+          'userId', 'name', 'category', 'targetAmount', 'currentAmount',
+          'monthlyContribution', 'targetDate', 'encryptedPayload', 'isEncrypted', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'userId', 'name', 'category', 'targetAmount', 'currentAmount',
+          'monthlyContribution', 'targetDate', 'encryptedPayload', 'isEncrypted', 'createdAt', 'updatedAt'
+        ])
+        && data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128
+        && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.userId == request.auth.uid && data.userId == userId
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 64
+        && (data.targetAmount is int || data.targetAmount is float) && data.targetAmount >= 0 && data.targetAmount <= 1000000000000
+        && (data.currentAmount is int || data.currentAmount is float) && data.currentAmount >= 0 && data.currentAmount <= 1000000000000
+        && (data.monthlyContribution is int || data.monthlyContribution is float) && data.monthlyContribution >= 0 && data.monthlyContribution <= 1000000000000
+        && data.targetDate is string && data.targetDate.size() == 10 && data.targetDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.encryptedPayload is string && data.encryptedPayload.size() <= 4096
+        && data.isEncrypted is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBudgetLimit(data, userId) {
+      return data.keys().hasAll([
+          'userId', 'category', 'monthKey', 'limitAmount', 'alertThreshold',
+          'notifyEnabled', 'encryptedPayload', 'isEncrypted', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'userId', 'category', 'monthKey', 'limitAmount', 'alertThreshold',
+          'notifyEnabled', 'encryptedPayload', 'isEncrypted', 'createdAt', 'updatedAt'
+        ])
+        && data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128
+        && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.userId == request.auth.uid && data.userId == userId
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 64
+        && data.monthKey is string && data.monthKey.size() == 7 && data.monthKey.matches('^[0-9]{4}-[0-9]{2}$')
+        && (data.limitAmount is int || data.limitAmount is float) && data.limitAmount >= 0 && data.limitAmount <= 1000000000000
+        && (data.alertThreshold is int || data.alertThreshold is float) && data.alertThreshold >= 50 && data.alertThreshold <= 100
+        && data.notifyEnabled is bool
+        && data.encryptedPayload is string && data.encryptedPayload.size() <= 4096
+        && data.isEncrypted is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidFinancialPlan(data, userId) {
+      return data.keys().hasAll([
+          'userId', 'title', 'category', 'estimatedCost', 'allocatedAmount',
+          'targetMonth', 'priority', 'status', 'encryptedPayload', 'isEncrypted', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'userId', 'title', 'category', 'estimatedCost', 'allocatedAmount',
+          'targetMonth', 'priority', 'status', 'encryptedPayload', 'isEncrypted', 'createdAt', 'updatedAt'
+        ])
+        && data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128
+        && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.userId == request.auth.uid && data.userId == userId
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 64
+        && (data.estimatedCost is int || data.estimatedCost is float) && data.estimatedCost >= 0 && data.estimatedCost <= 1000000000000
+        && (data.allocatedAmount is int || data.allocatedAmount is float) && data.allocatedAmount >= 0 && data.allocatedAmount <= 1000000000000
+        && data.targetMonth is string && data.targetMonth.size() == 7 && data.targetMonth.matches('^[0-9]{4}-[0-9]{2}$')
+        && data.priority is string && data.priority.size() <= 16 && (data.priority == 'high' || data.priority == 'medium' || data.priority == 'low')
+        && data.status is string && data.status.size() <= 16 && (data.status == 'planned' || data.status == 'ready' || data.status == 'completed')
+        && data.encryptedPayload is string && data.encryptedPayload.size() <= 4096
+        && data.isEncrypted is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // 4. Collection Match Blocks
+    match /users/{userId}/transactions/{transactionId} {
+      allow get: if isOwner(userId) && isValidId(userId) && isValidId(transactionId) && existing().userId == request.auth.uid;
+      allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+      allow create: if isOwner(userId) && isValidId(userId) && isValidId(transactionId)
+        && isValidTransaction(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isOwner(userId) && isValidId(userId) && isValidId(transactionId)
+        && isValidTransaction(incoming(), userId)
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'type', 'category', 'amount', 'date', 'monthKey', 'account',
+            'title', 'encryptedPayload', 'isEncrypted', 'updatedAt'
+          ])
+        );
+      allow delete: if isOwner(userId) && isValidId(userId) && isValidId(transactionId) && existing().userId == request.auth.uid;
+    }
+
+    match /users/{userId}/savings/{savingId} {
+      allow get: if isOwner(userId) && isValidId(userId) && isValidId(savingId) && existing().userId == request.auth.uid;
+      allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+      allow create: if isOwner(userId) && isValidId(userId) && isValidId(savingId)
+        && isValidSavingGoal(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isOwner(userId) && isValidId(userId) && isValidId(savingId)
+        && isValidSavingGoal(incoming(), userId)
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action: Update Balance / Contribution
+          incoming().diff(existing()).affectedKeys().hasOnly(['currentAmount', 'monthlyContribution', 'encryptedPayload', 'updatedAt']) ||
+          // Action: Full Goal Edit
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'category', 'targetAmount', 'currentAmount',
+            'monthlyContribution', 'targetDate', 'encryptedPayload', 'isEncrypted', 'updatedAt'
+          ])
+        );
+      allow delete: if isOwner(userId) && isValidId(userId) && isValidId(savingId) && existing().userId == request.auth.uid;
+    }
+
+    match /users/{userId}/budgets/{budgetId} {
+      allow get: if isOwner(userId) && isValidId(userId) && isValidId(budgetId) && existing().userId == request.auth.uid;
+      allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+      allow create: if isOwner(userId) && isValidId(userId) && isValidId(budgetId)
+        && isValidBudgetLimit(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isOwner(userId) && isValidId(userId) && isValidId(budgetId)
+        && isValidBudgetLimit(incoming(), userId)
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'category', 'monthKey', 'limitAmount', 'alertThreshold',
+            'notifyEnabled', 'encryptedPayload', 'isEncrypted', 'updatedAt'
+          ])
+        );
+      allow delete: if isOwner(userId) && isValidId(userId) && isValidId(budgetId) && existing().userId == request.auth.uid;
+    }
+
+    match /users/{userId}/plans/{planId} {
+      allow get: if isOwner(userId) && isValidId(userId) && isValidId(planId) && existing().userId == request.auth.uid;
+      allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+      allow create: if isOwner(userId) && isValidId(userId) && isValidId(planId)
+        && isValidFinancialPlan(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isOwner(userId) && isValidId(userId) && isValidId(planId)
+        && isValidFinancialPlan(incoming(), userId)
+        && existing().status != 'completed'
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action: Status or Allocation Transition
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'allocatedAmount', 'encryptedPayload', 'updatedAt']) ||
+          // Action: Edit Plan Details
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'category', 'estimatedCost', 'allocatedAmount',
+            'targetMonth', 'priority', 'status', 'encryptedPayload', 'isEncrypted', 'updatedAt'
+          ])
+        );
+      allow delete: if isOwner(userId) && isValidId(userId) && isValidId(planId) && existing().userId == request.auth.uid;
+    }
+  }
+}

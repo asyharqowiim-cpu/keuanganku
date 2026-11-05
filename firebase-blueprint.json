@@ -1,0 +1,286 @@
+{
+  "entities": {
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Pencatatan pemasukan atau pengeluaran keuangan pribadi dengan payload terenkripsi E2EE.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID pemilik data",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["income", "expense"],
+          "maxLength": 16
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "amount": {
+          "type": "number",
+          "description": "Nominal dalam Rupiah"
+        },
+        "date": {
+          "type": "string",
+          "maxLength": 16,
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "monthKey": {
+          "type": "string",
+          "maxLength": 10,
+          "pattern": "^[0-9]{4}-[0-9]{2}$"
+        },
+        "account": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "encryptedPayload": {
+          "type": "string",
+          "description": "Ciphertext AES-256-GCM (IV + Ciphertext base64)",
+          "maxLength": 4096
+        },
+        "isEncrypted": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "type",
+        "category",
+        "amount",
+        "date",
+        "monthKey",
+        "account",
+        "title",
+        "encryptedPayload",
+        "isEncrypted",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SavingGoal": {
+      "title": "SavingGoal",
+      "description": "Pos tabungan dan dana darurat pengguna beserta target dan nominal terkumpul.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "targetAmount": {
+          "type": "number"
+        },
+        "currentAmount": {
+          "type": "number"
+        },
+        "monthlyContribution": {
+          "type": "number"
+        },
+        "targetDate": {
+          "type": "string",
+          "maxLength": 16,
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "encryptedPayload": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "isEncrypted": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "name",
+        "category",
+        "targetAmount",
+        "currentAmount",
+        "monthlyContribution",
+        "targetDate",
+        "encryptedPayload",
+        "isEncrypted",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BudgetLimit": {
+      "title": "BudgetLimit",
+      "description": "Batas anggaran pengeluaran bulanan per kategori dengan ambang pengingat.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "monthKey": {
+          "type": "string",
+          "maxLength": 10,
+          "pattern": "^[0-9]{4}-[0-9]{2}$"
+        },
+        "limitAmount": {
+          "type": "number"
+        },
+        "alertThreshold": {
+          "type": "number",
+          "description": "Persentase peringatan antara 50 sampai 100"
+        },
+        "notifyEnabled": {
+          "type": "boolean"
+        },
+        "encryptedPayload": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "isEncrypted": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "category",
+        "monthKey",
+        "limitAmount",
+        "alertThreshold",
+        "notifyEnabled",
+        "encryptedPayload",
+        "isEncrypted",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "FinancialPlan": {
+      "title": "FinancialPlan",
+      "description": "Perencanaan keuangan masa depan, pembelian terencana, atau komitmen finansial.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "estimatedCost": {
+          "type": "number"
+        },
+        "allocatedAmount": {
+          "type": "number"
+        },
+        "targetMonth": {
+          "type": "string",
+          "maxLength": 10,
+          "pattern": "^[0-9]{4}-[0-9]{2}$"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["high", "medium", "low"],
+          "maxLength": 16
+        },
+        "status": {
+          "type": "string",
+          "enum": ["planned", "ready", "completed"],
+          "maxLength": 16
+        },
+        "encryptedPayload": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "isEncrypted": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "title",
+        "category",
+        "estimatedCost",
+        "allocatedAmount",
+        "targetMonth",
+        "priority",
+        "status",
+        "encryptedPayload",
+        "isEncrypted",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "Koleksi transaksi pemasukan dan pengeluaran milik pengguna tertentu."
+    },
+    "/users/{userId}/savings/{savingId}": {
+      "schema": { "$ref": "#/entities/SavingGoal" },
+      "description": "Koleksi target tabungan dan dana darurat milik pengguna tertentu."
+    },
+    "/users/{userId}/budgets/{budgetId}": {
+      "schema": { "$ref": "#/entities/BudgetLimit" },
+      "description": "Koleksi batas anggaran bulanan per kategori milik pengguna tertentu."
+    },
+    "/users/{userId}/plans/{planId}": {
+      "schema": { "$ref": "#/entities/FinancialPlan" },
+      "description": "Koleksi rencana pengeluaran dan alokasi finansial masa depan milik pengguna tertentu."
+    }
+  }
+}
