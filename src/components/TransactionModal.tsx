@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock } from 'lucide-react';
+import { X } from 'lucide-react';
 import {
   TransactionItem,
   TransactionType,
@@ -7,6 +7,8 @@ import {
   EXPENSE_CATEGORIES,
   ACCOUNT_OPTIONS,
 } from '../types/finance';
+import { formatRupiahInput, parseRupiahInput } from '../utils/formatters';
+import { CurrencyInput } from './CurrencyInput';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -48,7 +50,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     if (editingItem) {
       setType(editingItem.type);
       setTitle(editingItem.title);
-      setAmount(String(editingItem.amount));
+      setAmount(formatRupiahInput(editingItem.amount));
       setCategory(editingItem.category);
       setAccount(editingItem.account);
       setDate(editingItem.date);
@@ -81,13 +83,13 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const numericAmount = Number(amount);
+    const numericAmount = parseRupiahInput(amount);
     if (!title.trim() || title.trim().length > 160) {
       setErrorMsg('Judul transaksi wajib diisi (maksimal 160 karakter).');
       return;
     }
     if (isNaN(numericAmount) || numericAmount <= 0 || numericAmount > 1_000_000_000_000) {
-      setErrorMsg('Masukkan nominal Rupiah yang valid.');
+      setErrorMsg('Masukkan nominal Rupiah yang valid (contoh: 1.000.000).');
       return;
     }
     if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date)) {
@@ -165,7 +167,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
               Deskripsi / Judul Transaksi
             </label>
             <input
@@ -179,39 +181,29 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   ? 'Contoh: Gaji Bulanan, Fee Proyek Desain...'
                   : 'Contoh: Belanja Bulanan Dapur, Tagihan Listrik...'
               }
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100"
+              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100"
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Nominal (Rp)
-              </label>
-              <input
-                type="number"
-                required
-                min={1}
-                max={1000000000000}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="Contoh: 1500000"
-                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100"
-              />
-            </div>
+          <CurrencyInput
+            label="Nominal Uang (Rupiah)"
+            value={amount}
+            onChange={(formatted) => setAmount(formatted)}
+            placeholder="Contoh: 1.000.000"
+            required
+          />
 
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Tanggal Transaksi
-              </label>
-              <input
-                type="date"
-                required
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Tanggal Transaksi
+            </label>
+            <input
+              type="date"
+              required
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-sm font-mono tabular-nums rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100"
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

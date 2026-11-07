@@ -1,15 +1,29 @@
 import React, { useState } from 'react';
-import { BarChart3, PieChart, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import {
+  BarChart3,
+  PieChart,
+  TrendingUp,
+  ArrowUpRight,
+  ArrowDownRight,
+  Plus,
+  Edit3,
+  Trash2,
+} from 'lucide-react';
 import {
   TransactionItem,
   BudgetLimitItem,
   SavingGoalItem,
+  EXPENSE_CATEGORIES,
 } from '../types/finance';
 import {
+  formatIDR,
   formatCompactIDR,
   formatShortMonth,
   getLastSixMonths,
+  formatRupiahInput,
+  parseRupiahInput,
 } from '../utils/formatters';
+import { CurrencyInput } from './CurrencyInput';
 
 interface ChartsSectionProps {
   transactions: TransactionItem[];
@@ -17,6 +31,15 @@ interface ChartsSectionProps {
   savings: SavingGoalItem[];
   activeMonth: string;
   isVaultLocked: boolean;
+  onSaveBudgetLimit?: (data: {
+    id?: string;
+    category: string;
+    monthKey: string;
+    limitAmount: number;
+    alertThreshold: number;
+    notifyEnabled: boolean;
+  }) => Promise<void>;
+  onDeleteBudgetLimit?: (id: string) => Promise<void>;
 }
 
 export const ChartsSection: React.FC<ChartsSectionProps> = ({
@@ -24,8 +47,17 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
   budgets,
   activeMonth,
   isVaultLocked,
+  onSaveBudgetLimit,
+  onDeleteBudgetLimit,
 }) => {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [showBudgetForm, setShowBudgetForm] = useState<boolean>(false);
+  const [editingBudgetId, setEditingBudgetId] = useState<string | undefined>(undefined);
+  const [bgtCategory, setBgtCategory] = useState<string>(EXPENSE_CATEGORIES[0]);
+  const [bgtLimit, setBgtLimit] = useState<string>('');
+  const [bgtThreshold, setBgtThreshold] = useState<string>('80');
+  const [bgtError, setBgtError] = useState<string>('');
+
   const sixMonths = getLastSixMonths(activeMonth);
 
   const monthlySeries = sixMonths.map((mKey) => {
@@ -59,6 +91,32 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
     hoveredIdx !== null
       ? monthlySeries[hoveredIdx]
       : monthlySeries[monthlySeries.length - 1];
+
+  const handleSubmitBudget = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onSaveBudgetLimit) return;
+    const limitNum = parseRupiahInput(bgtLimit);
+    if (limitNum <= 0) {
+      setBgtError('Masukkan nominal batas anggaran Rupiah (contoh: 1.000.000).');
+      return;
+    }
+    setBgtError('');
+    const existing = editingBudgetId
+      ? budgets.find((b) => b.id === editingBudgetId)
+      : budgets.find((b) => b.monthKey === activeMonth && b.category === bgtCategory);
+
+    await onSaveBudgetLimit({
+      id: existing?.id,
+      category: bgtCategory,
+      monthKey: activeMonth,
+      limitAmount: limitNum,
+      alertThreshold: Math.min(100, Math.max(50, Math.round(Number(bgtThreshold) || 80))),
+      notifyEnabled: true,
+    });
+    setEditingBudgetId(undefined);
+    setBgtLimit('');
+    setShowBudgetForm(false);
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-7 items-stretch">
@@ -220,34 +278,123 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
         </div>
       </div>
 
-      {/* Right: Monthly Budget Progress Card (5 cols) */}
+      {/* Right: Monthly Budget Progress Card with Direct Budget Form (5 cols) */}
       <div className="lg:col-span-5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/90 rounded-3xl p-6 sm:p-8 shadow-lg shadow-blue-950/5 flex flex-col justify-between transition-all">
         <div className="space-y-5">
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-900/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-              <PieChart className="w-5 h-5" />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-900/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                <PieChart className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
+                  Batas Anggaran Bulanan
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Realisasi pemakaian anggaran per kategori
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
-                Batas Anggaran Bulanan
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                Realisasi pemakaian anggaran per kategori
-              </p>
-            </div>
+            {onSaveBudgetLimit && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingBudgetId(undefined);
+                  setBgtLimit('');
+                  setBgtError('');
+                  setShowBudgetForm(!showBudgetForm);
+                }}
+                className="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{showBudgetForm ? 'Tutup Form' : 'Buat Anggaran'}</span>
+              </button>
+            )}
           </div>
 
+          {showBudgetForm && onSaveBudgetLimit && (
+            <form
+              onSubmit={handleSubmitBudget}
+              className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3.5"
+            >
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Kategori Pengeluaran
+                </label>
+                <select
+                  value={bgtCategory}
+                  onChange={(e) => setBgtCategory(e.target.value)}
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                >
+                  {EXPENSE_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <CurrencyInput
+                label="Nominal Batas Anggaran (Rp)"
+                value={bgtLimit}
+                onChange={(formatted) => setBgtLimit(formatted)}
+                placeholder="Contoh: 1.000.000"
+                required
+                compact
+              />
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Peringatan Saat Mencapai ({bgtThreshold}%)
+                </label>
+                <input
+                  type="number"
+                  min={50}
+                  max={100}
+                  value={bgtThreshold}
+                  onChange={(e) => setBgtThreshold(e.target.value)}
+                  className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                />
+              </div>
+
+              {bgtError && (
+                <div className="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-xs text-rose-600 dark:text-rose-400">
+                  {bgtError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full py-2 px-4 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl cursor-pointer transition-colors"
+              >
+                {editingBudgetId ? 'Perbarui Batas Anggaran' : 'Simpan Batas Anggaran'}
+              </button>
+            </form>
+          )}
+
           {activeBudgets.length === 0 ? (
-            <div className="py-12 px-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center space-y-1.5">
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Belum Ada Batas Anggaran
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Atur batas pengeluaran di menu Planning & Anggaran untuk memantau pemakaian.
-              </p>
+            <div className="py-10 px-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center space-y-3">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  Belum Ada Batas Anggaran
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Buat batas pengeluaran kategori untuk memantau realisasi pemakaian anggaran bulanan.
+                </p>
+              </div>
+              {onSaveBudgetLimit && !showBudgetForm && (
+                <button
+                  type="button"
+                  onClick={() => setShowBudgetForm(true)}
+                  className="px-4 py-2 text-xs font-bold text-blue-700 dark:text-sky-300 bg-blue-100/80 dark:bg-blue-950 hover:bg-blue-200/80 rounded-xl inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Buat Batas Anggaran Pertama
+                </button>
+              )}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3.5">
               {activeBudgets.slice(0, 5).map((b) => {
                 const spent = activeExpenses
                   .filter((t) => t.category === b.category)
@@ -268,11 +415,12 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
                       <span className="font-bold text-slate-800 dark:text-slate-100 truncate">
                         {b.category}
                       </span>
-                      <span className="font-mono tabular-nums text-xs sm:text-sm text-slate-600 dark:text-slate-300 shrink-0">
-                        {formatCompactIDR(spent, isVaultLocked)} /{' '}
-                        {formatCompactIDR(b.limitAmount, isVaultLocked)}{' '}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="font-mono tabular-nums text-xs text-slate-600 dark:text-slate-300">
+                          {formatIDR(spent, isVaultLocked)} / {formatIDR(b.limitAmount, isVaultLocked)}
+                        </span>
                         <strong
-                          className={`ml-1 px-1.5 py-0.5 rounded-md text-xs ${
+                          className={`px-1.5 py-0.5 rounded-md text-xs font-mono ${
                             isOver
                               ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300'
                               : isWarn
@@ -282,7 +430,33 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
                         >
                           {pct}%
                         </strong>
-                      </span>
+                        {onSaveBudgetLimit && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingBudgetId(b.id);
+                              setBgtCategory(b.category);
+                              setBgtLimit(formatRupiahInput(b.limitAmount));
+                              setBgtThreshold(String(b.alertThreshold));
+                              setShowBudgetForm(true);
+                            }}
+                            className="p-1 text-slate-400 hover:text-blue-600 rounded-md cursor-pointer"
+                            title="Ubah anggaran"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {onDeleteBudgetLimit && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteBudgetLimit(b.id)}
+                            className="p-1 text-slate-400 hover:text-rose-600 rounded-md cursor-pointer"
+                            title="Hapus anggaran"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="w-full h-2.5 bg-slate-200/80 dark:bg-slate-700/80 rounded-full overflow-hidden">
                       <div

@@ -522,6 +522,39 @@ export default function App() {
       collection(db, txPath),
       async (snap) => {
         if (snap.empty) {
+          const localRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.TXS);
+          if (localRaw) {
+            try {
+              const localList: TransactionItem[] = JSON.parse(localRaw);
+              if (Array.isArray(localList) && localList.length > 0) {
+                localStorage.removeItem(LOCAL_STORAGE_KEYS.TXS);
+                for (const tx of localList) {
+                  const docId = tx.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
+                  const enc = await encryptPayload(
+                    { title: tx.title, notes: tx.notes || '', amount: tx.amount },
+                    cryptoKey
+                  );
+                  await setDoc(doc(db, txPath, docId), {
+                    userId: uid,
+                    type: tx.type,
+                    category: tx.category.slice(0, 64),
+                    amount: Math.max(0, Math.round(tx.amount)),
+                    date: tx.date,
+                    monthKey: tx.monthKey,
+                    account: tx.account.slice(0, 64),
+                    title: tx.title.slice(0, 160),
+                    encryptedPayload: enc.slice(0, 4096),
+                    isEncrypted: true,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                  });
+                }
+                return;
+              }
+            } catch {
+              // Ignore malformed local JSON
+            }
+          }
           setTransactions([]);
           return;
         }
@@ -561,6 +594,38 @@ export default function App() {
       collection(db, savPath),
       async (snap) => {
         if (snap.empty) {
+          const localRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.SAVINGS);
+          if (localRaw) {
+            try {
+              const localList: SavingGoalItem[] = JSON.parse(localRaw);
+              if (Array.isArray(localList) && localList.length > 0) {
+                localStorage.removeItem(LOCAL_STORAGE_KEYS.SAVINGS);
+                for (const sav of localList) {
+                  const docId = sav.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
+                  const enc = await encryptPayload(
+                    { name: sav.name, notes: sav.notes || '' },
+                    cryptoKey
+                  );
+                  await setDoc(doc(db, savPath, docId), {
+                    userId: uid,
+                    name: sav.name.slice(0, 120),
+                    category: sav.category.slice(0, 64),
+                    targetAmount: Math.max(0, Math.round(sav.targetAmount)),
+                    currentAmount: Math.max(0, Math.round(sav.currentAmount)),
+                    monthlyContribution: Math.max(0, Math.round(sav.monthlyContribution)),
+                    targetDate: sav.targetDate,
+                    encryptedPayload: enc.slice(0, 4096),
+                    isEncrypted: true,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                  });
+                }
+                return;
+              }
+            } catch {
+              // Ignore malformed local JSON
+            }
+          }
           setSavings([]);
           return;
         }
@@ -594,8 +659,36 @@ export default function App() {
     const bgtPath = `users/${uid}/budgets`;
     const unsubBgt = onSnapshot(
       collection(db, bgtPath),
-      (snap) => {
+      async (snap) => {
         if (snap.empty) {
+          const localRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.BUDGETS);
+          if (localRaw) {
+            try {
+              const localList: BudgetLimitItem[] = JSON.parse(localRaw);
+              if (Array.isArray(localList) && localList.length > 0) {
+                localStorage.removeItem(LOCAL_STORAGE_KEYS.BUDGETS);
+                for (const bgt of localList) {
+                  const docId = bgt.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
+                  const enc = await encryptPayload({ category: bgt.category }, cryptoKey);
+                  await setDoc(doc(db, bgtPath, docId), {
+                    userId: uid,
+                    category: bgt.category.slice(0, 64),
+                    monthKey: bgt.monthKey,
+                    limitAmount: Math.max(0, Math.round(bgt.limitAmount)),
+                    alertThreshold: Math.min(100, Math.max(50, Math.round(bgt.alertThreshold))),
+                    notifyEnabled: Boolean(bgt.notifyEnabled),
+                    encryptedPayload: enc.slice(0, 4096),
+                    isEncrypted: true,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                  });
+                }
+                return;
+              }
+            } catch {
+              // Ignore malformed local JSON
+            }
+          }
           setBudgets([]);
           return;
         }
@@ -623,6 +716,39 @@ export default function App() {
       collection(db, plnPath),
       async (snap) => {
         if (snap.empty) {
+          const localRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.PLANS);
+          if (localRaw) {
+            try {
+              const localList: FinancialPlanItem[] = JSON.parse(localRaw);
+              if (Array.isArray(localList) && localList.length > 0) {
+                localStorage.removeItem(LOCAL_STORAGE_KEYS.PLANS);
+                for (const pln of localList) {
+                  const docId = pln.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
+                  const enc = await encryptPayload(
+                    { title: pln.title, notes: pln.notes || '' },
+                    cryptoKey
+                  );
+                  await setDoc(doc(db, plnPath, docId), {
+                    userId: uid,
+                    title: pln.title.slice(0, 160),
+                    category: pln.category.slice(0, 64),
+                    estimatedCost: Math.max(0, Math.round(pln.estimatedCost)),
+                    allocatedAmount: Math.max(0, Math.round(pln.allocatedAmount)),
+                    targetMonth: pln.targetMonth,
+                    priority: pln.priority,
+                    status: pln.status,
+                    encryptedPayload: enc.slice(0, 4096),
+                    isEncrypted: true,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                  });
+                }
+                return;
+              }
+            } catch {
+              // Ignore malformed local JSON
+            }
+          }
           setPlans([]);
           return;
         }
@@ -860,39 +986,56 @@ export default function App() {
       const uid = currentUser.uid;
       const path = `users/${uid}/savings`;
       try {
-        await setDoc(doc(db, path, docId), {
-          userId: uid,
-          name: data.name.slice(0, 120),
-          category: data.category.slice(0, 64),
-          targetAmount: Math.round(data.targetAmount),
-          currentAmount: Math.round(data.currentAmount),
-          monthlyContribution: Math.round(data.monthlyContribution),
-          targetDate: data.targetDate,
-          encryptedPayload: enc.slice(0, 4096),
-          isEncrypted: true,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
+        if (data.id) {
+          await updateDoc(doc(db, path, docId), {
+            name: data.name.slice(0, 120),
+            category: data.category.slice(0, 64),
+            targetAmount: Math.round(data.targetAmount),
+            currentAmount: Math.round(data.currentAmount),
+            monthlyContribution: Math.round(data.monthlyContribution),
+            targetDate: data.targetDate,
+            encryptedPayload: enc.slice(0, 4096),
+            isEncrypted: true,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          await setDoc(doc(db, path, docId), {
+            userId: uid,
+            name: data.name.slice(0, 120),
+            category: data.category.slice(0, 64),
+            targetAmount: Math.round(data.targetAmount),
+            currentAmount: Math.round(data.currentAmount),
+            monthlyContribution: Math.round(data.monthlyContribution),
+            targetDate: data.targetDate,
+            encryptedPayload: enc.slice(0, 4096),
+            isEncrypted: true,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
       } catch (err) {
         handleFirestoreError(err, OperationType.WRITE, path);
       }
     } else {
-      setSavings((prev) => [
-        ...prev,
-        {
-          id: docId,
-          userId: currentUser?.uid || 'local_user',
-          name: data.name,
-          category: data.category,
-          targetAmount: data.targetAmount,
-          currentAmount: data.currentAmount,
-          monthlyContribution: data.monthlyContribution,
-          targetDate: data.targetDate,
-          notes: data.notes,
-          encryptedPayload: enc,
-          isEncrypted: true,
-        },
-      ]);
+      const newItem: SavingGoalItem = {
+        id: docId,
+        userId: currentUser?.uid || 'local_user',
+        name: data.name,
+        category: data.category,
+        targetAmount: data.targetAmount,
+        currentAmount: data.currentAmount,
+        monthlyContribution: data.monthlyContribution,
+        targetDate: data.targetDate,
+        notes: data.notes,
+        encryptedPayload: enc,
+        isEncrypted: true,
+      };
+      setSavings((prev) => {
+        const exists = prev.some((s) => s.id === docId);
+        return exists
+          ? prev.map((s) => (s.id === docId ? newItem : s))
+          : [...prev, newItem];
+      });
     }
   };
 
@@ -1725,6 +1868,8 @@ export default function App() {
               savings={savings}
               activeMonth={activeMonth}
               isVaultLocked={isVaultLocked}
+              onSaveBudgetLimit={handleSaveBudgetLimit}
+              onDeleteBudgetLimit={handleDeleteBudgetLimit}
             />
 
             {/* Modernized Recent Transactions Card */}

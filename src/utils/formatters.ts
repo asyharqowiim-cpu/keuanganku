@@ -32,6 +32,19 @@ export function formatCompactIDR(amount: number, masked = false): string {
   return `${sign}Rp ${abs}`;
 }
 
+export function formatRupiahInput(value: string | number): string {
+  const digits = String(value ?? '').replace(/\D/g, '').replace(/^0+/, '');
+  if (!digits) return '';
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+export function parseRupiahInput(formatted: string | number): number {
+  const digits = String(formatted ?? '').replace(/\D/g, '').replace(/^0+/, '');
+  if (!digits) return 0;
+  const num = Number(digits);
+  return Number.isFinite(num) ? num : 0;
+}
+
 const INDONESIAN_MONTHS: Record<string, string> = {
   '01': 'Januari',
   '02': 'Februari',
