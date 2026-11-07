@@ -362,28 +362,20 @@ export default function App() {
   }, [passphrase, currentUser?.uid]);
 
   useEffect(() => {
-    if (!isCloudVerifiedUser) {
-      localStorage.setItem(LOCAL_STORAGE_KEYS.TXS, JSON.stringify(transactions));
-    }
-  }, [transactions, isCloudVerifiedUser]);
+    localStorage.setItem(LOCAL_STORAGE_KEYS.TXS, JSON.stringify(transactions));
+  }, [transactions]);
 
   useEffect(() => {
-    if (!isCloudVerifiedUser) {
-      localStorage.setItem(LOCAL_STORAGE_KEYS.SAVINGS, JSON.stringify(savings));
-    }
-  }, [savings, isCloudVerifiedUser]);
+    localStorage.setItem(LOCAL_STORAGE_KEYS.SAVINGS, JSON.stringify(savings));
+  }, [savings]);
 
   useEffect(() => {
-    if (!isCloudVerifiedUser) {
-      localStorage.setItem(LOCAL_STORAGE_KEYS.BUDGETS, JSON.stringify(budgets));
-    }
-  }, [budgets, isCloudVerifiedUser]);
+    localStorage.setItem(LOCAL_STORAGE_KEYS.BUDGETS, JSON.stringify(budgets));
+  }, [budgets]);
 
   useEffect(() => {
-    if (!isCloudVerifiedUser) {
-      localStorage.setItem(LOCAL_STORAGE_KEYS.PLANS, JSON.stringify(plans));
-    }
-  }, [plans, isCloudVerifiedUser]);
+    localStorage.setItem(LOCAL_STORAGE_KEYS.PLANS, JSON.stringify(plans));
+  }, [plans]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -893,6 +885,31 @@ export default function App() {
         )
       : 'v1:unencrypted:local';
 
+    const newItem: TransactionItem = {
+      id: docId,
+      userId: currentUser?.uid || 'local_user',
+      type: data.type,
+      category: data.category.slice(0, 64),
+      amount: Math.round(data.amount),
+      date: data.date,
+      monthKey,
+      account: data.account.slice(0, 64),
+      title: data.title.slice(0, 160),
+      notes: data.notes,
+      encryptedPayload: enc,
+      isEncrypted: true,
+    };
+
+    // Update UI & localStorage immediately so the transaction is always saved & visible
+    setTransactions((prev) => {
+      const exists = prev.some((t) => t.id === docId);
+      const next = exists
+        ? prev.map((t) => (t.id === docId ? newItem : t))
+        : [newItem, ...prev];
+      return next.sort((a, b) => b.date.localeCompare(a.date));
+    });
+    setActiveMonth(monthKey);
+
     if (currentUser && currentUser.emailVerified) {
       const uid = currentUser.uid;
       const path = `users/${uid}/transactions`;
@@ -927,43 +944,20 @@ export default function App() {
           });
         }
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, path);
+        console.warn('Cloud sync warning (saved locally):', err);
       }
-    } else {
-      const newItem: TransactionItem = {
-        id: docId,
-        userId: currentUser?.uid || 'local_user',
-        type: data.type,
-        category: data.category,
-        amount: data.amount,
-        date: data.date,
-        monthKey,
-        account: data.account,
-        title: data.title,
-        notes: data.notes,
-        encryptedPayload: enc,
-        isEncrypted: true,
-      };
-      setTransactions((prev) => {
-        const exists = prev.some((t) => t.id === docId);
-        const next = exists
-          ? prev.map((t) => (t.id === docId ? newItem : t))
-          : [newItem, ...prev];
-        return next.sort((a, b) => b.date.localeCompare(a.date));
-      });
     }
   };
 
   const handleDeleteTransaction = async (id: string) => {
+    setTransactions((prev) => prev.filter((t) => t.id !== id));
     if (currentUser && currentUser.emailVerified) {
       const path = `users/${currentUser.uid}/transactions`;
       try {
         await deleteDoc(doc(db, path, id));
       } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, path);
+        console.warn('Cloud delete warning:', err);
       }
-    } else {
-      setTransactions((prev) => prev.filter((t) => t.id !== id));
     }
   };
 
@@ -981,6 +975,27 @@ export default function App() {
     const enc = cryptoKey
       ? await encryptPayload({ name: data.name, notes: data.notes || '' }, cryptoKey)
       : 'v1:unencrypted:local';
+
+    const newItem: SavingGoalItem = {
+      id: docId,
+      userId: currentUser?.uid || 'local_user',
+      name: data.name.slice(0, 120),
+      category: data.category.slice(0, 64),
+      targetAmount: Math.round(data.targetAmount),
+      currentAmount: Math.round(data.currentAmount),
+      monthlyContribution: Math.round(data.monthlyContribution),
+      targetDate: data.targetDate,
+      notes: data.notes,
+      encryptedPayload: enc,
+      isEncrypted: true,
+    };
+
+    setSavings((prev) => {
+      const exists = prev.some((s) => s.id === docId);
+      return exists
+        ? prev.map((s) => (s.id === docId ? newItem : s))
+        : [...prev, newItem];
+    });
 
     if (currentUser && currentUser.emailVerified) {
       const uid = currentUser.uid;
@@ -1014,28 +1029,8 @@ export default function App() {
           });
         }
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, path);
+        console.warn('Cloud sync warning (saved locally):', err);
       }
-    } else {
-      const newItem: SavingGoalItem = {
-        id: docId,
-        userId: currentUser?.uid || 'local_user',
-        name: data.name,
-        category: data.category,
-        targetAmount: data.targetAmount,
-        currentAmount: data.currentAmount,
-        monthlyContribution: data.monthlyContribution,
-        targetDate: data.targetDate,
-        notes: data.notes,
-        encryptedPayload: enc,
-        isEncrypted: true,
-      };
-      setSavings((prev) => {
-        const exists = prev.some((s) => s.id === docId);
-        return exists
-          ? prev.map((s) => (s.id === docId ? newItem : s))
-          : [...prev, newItem];
-      });
     }
   };
 
@@ -1044,6 +1039,14 @@ export default function App() {
     const enc = cryptoKey
       ? await encryptPayload({ name: goal.name, currentAmount: nextAmount }, cryptoKey)
       : goal.encryptedPayload;
+
+    setSavings((prev) =>
+      prev.map((s) =>
+        s.id === goal.id
+          ? { ...s, currentAmount: nextAmount, encryptedPayload: enc }
+          : s
+      )
+    );
 
     if (currentUser && currentUser.emailVerified) {
       const path = `users/${currentUser.uid}/savings`;
@@ -1055,29 +1058,20 @@ export default function App() {
           updatedAt: serverTimestamp(),
         });
       } catch (err) {
-        handleFirestoreError(err, OperationType.UPDATE, path);
+        console.warn('Cloud sync warning (saved locally):', err);
       }
-    } else {
-      setSavings((prev) =>
-        prev.map((s) =>
-          s.id === goal.id
-            ? { ...s, currentAmount: nextAmount, encryptedPayload: enc }
-            : s
-        )
-      );
     }
   };
 
   const handleDeleteSavingGoal = async (id: string) => {
+    setSavings((prev) => prev.filter((s) => s.id !== id));
     if (currentUser && currentUser.emailVerified) {
       const path = `users/${currentUser.uid}/savings`;
       try {
         await deleteDoc(doc(db, path, id));
       } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, path);
+        console.warn('Cloud delete warning:', err);
       }
-    } else {
-      setSavings((prev) => prev.filter((s) => s.id !== id));
     }
   };
 
@@ -1093,6 +1087,25 @@ export default function App() {
     const enc = cryptoKey
       ? await encryptPayload({ category: data.category, limitAmount: data.limitAmount }, cryptoKey)
       : 'v1:unencrypted:local';
+
+    const newItem: BudgetLimitItem = {
+      id: docId,
+      userId: currentUser?.uid || 'local_user',
+      category: data.category.slice(0, 64),
+      monthKey: data.monthKey,
+      limitAmount: Math.round(data.limitAmount),
+      alertThreshold: Math.round(data.alertThreshold),
+      notifyEnabled: data.notifyEnabled,
+      encryptedPayload: enc,
+      isEncrypted: true,
+    };
+
+    setBudgets((prev) => {
+      const exists = prev.some((b) => b.id === docId);
+      return exists
+        ? prev.map((b) => (b.id === docId ? newItem : b))
+        : [...prev, newItem];
+    });
 
     if (currentUser && currentUser.emailVerified) {
       const uid = currentUser.uid;
@@ -1124,39 +1137,20 @@ export default function App() {
           });
         }
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, path);
+        console.warn('Cloud sync warning (saved locally):', err);
       }
-    } else {
-      const newItem: BudgetLimitItem = {
-        id: docId,
-        userId: currentUser?.uid || 'local_user',
-        category: data.category,
-        monthKey: data.monthKey,
-        limitAmount: data.limitAmount,
-        alertThreshold: data.alertThreshold,
-        notifyEnabled: data.notifyEnabled,
-        encryptedPayload: enc,
-        isEncrypted: true,
-      };
-      setBudgets((prev) => {
-        const exists = prev.some((b) => b.id === docId);
-        return exists
-          ? prev.map((b) => (b.id === docId ? newItem : b))
-          : [...prev, newItem];
-      });
     }
   };
 
   const handleDeleteBudgetLimit = async (id: string) => {
+    setBudgets((prev) => prev.filter((b) => b.id !== id));
     if (currentUser && currentUser.emailVerified) {
       const path = `users/${currentUser.uid}/budgets`;
       try {
         await deleteDoc(doc(db, path, id));
       } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, path);
+        console.warn('Cloud delete warning:', err);
       }
-    } else {
-      setBudgets((prev) => prev.filter((b) => b.id !== id));
     }
   };
 
@@ -1175,6 +1169,28 @@ export default function App() {
     const enc = cryptoKey
       ? await encryptPayload({ title: data.title, notes: data.notes || '' }, cryptoKey)
       : 'v1:unencrypted:local';
+
+    const newItem: FinancialPlanItem = {
+      id: docId,
+      userId: currentUser?.uid || 'local_user',
+      title: data.title.slice(0, 160),
+      category: data.category.slice(0, 64),
+      estimatedCost: Math.round(data.estimatedCost),
+      allocatedAmount: Math.round(data.allocatedAmount),
+      targetMonth: data.targetMonth,
+      priority: data.priority,
+      status: data.status,
+      notes: data.notes,
+      encryptedPayload: enc,
+      isEncrypted: true,
+    };
+
+    setPlans((prev) => {
+      const exists = prev.some((p) => p.id === docId);
+      return exists
+        ? prev.map((p) => (p.id === docId ? newItem : p))
+        : [newItem, ...prev];
+    });
 
     if (currentUser && currentUser.emailVerified) {
       const uid = currentUser.uid;
@@ -1210,29 +1226,8 @@ export default function App() {
           });
         }
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, path);
+        console.warn('Cloud sync warning (saved locally):', err);
       }
-    } else {
-      const newItem: FinancialPlanItem = {
-        id: docId,
-        userId: currentUser?.uid || 'local_user',
-        title: data.title,
-        category: data.category,
-        estimatedCost: data.estimatedCost,
-        allocatedAmount: data.allocatedAmount,
-        targetMonth: data.targetMonth,
-        priority: data.priority,
-        status: data.status,
-        notes: data.notes,
-        encryptedPayload: enc,
-        isEncrypted: true,
-      };
-      setPlans((prev) => {
-        const exists = prev.some((p) => p.id === docId);
-        return exists
-          ? prev.map((p) => (p.id === docId ? newItem : p))
-          : [newItem, ...prev];
-      });
     }
   };
 
@@ -1261,17 +1256,31 @@ export default function App() {
   };
 
   const handleDeleteFinancialPlan = async (id: string) => {
+    setPlans((prev) => prev.filter((p) => p.id !== id));
     if (currentUser && currentUser.emailVerified) {
       const path = `users/${currentUser.uid}/plans`;
       try {
         await deleteDoc(doc(db, path, id));
       } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, path);
+        console.warn('Cloud delete warning:', err);
       }
-    } else {
-      setPlans((prev) => prev.filter((p) => p.id !== id));
     }
   };
+
+  const dynamicMonths = useMemo(() => {
+    const set = new Set<string>(AVAILABLE_MONTHS);
+    set.add(activeMonth);
+    transactions.forEach((t) => {
+      if (t.monthKey) set.add(t.monthKey);
+    });
+    budgets.forEach((b) => {
+      if (b.monthKey) set.add(b.monthKey);
+    });
+    plans.forEach((p) => {
+      if (p.targetMonth) set.add(p.targetMonth);
+    });
+    return Array.from(set).sort();
+  }, [activeMonth, transactions, budgets, plans]);
 
   const monthTransactions = useMemo(
     () => transactions.filter((t) => t.monthKey === activeMonth),
@@ -1664,7 +1673,7 @@ export default function App() {
                 onChange={(e) => setActiveMonth(e.target.value)}
                 className="w-full sm:w-auto px-4 py-2.5 text-sm font-bold rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md text-slate-900 dark:text-slate-100 shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {AVAILABLE_MONTHS.map((m) => (
+                {dynamicMonths.map((m) => (
                   <option key={m} value={m}>
                     {formatMonthLabel(m)}
                   </option>

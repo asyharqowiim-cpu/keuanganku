@@ -84,18 +84,15 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const numericAmount = parseRupiahInput(amount);
-    if (!title.trim() || title.trim().length > 160) {
-      setErrorMsg('Judul transaksi wajib diisi (maksimal 160 karakter).');
-      return;
-    }
+    const finalTitle = (title.trim() || category).slice(0, 160);
+
     if (isNaN(numericAmount) || numericAmount <= 0 || numericAmount > 1_000_000_000_000) {
-      setErrorMsg('Masukkan nominal Rupiah yang valid (contoh: 1.000.000).');
+      setErrorMsg('Masukkan nominal Rupiah yang valid (contoh: ketik 1 lalu klik .000 dua kali untuk 1.000.000).');
       return;
     }
-    if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date)) {
-      setErrorMsg('Format tanggal harus YYYY-MM-DD.');
-      return;
-    }
+    const validDate = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date)
+      ? date
+      : `${activeMonth}-05`;
 
     setIsSubmitting(true);
     setErrorMsg('');
@@ -105,9 +102,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         type,
         category: category.slice(0, 64),
         amount: Math.round(numericAmount),
-        date,
+        date: validDate,
         account: account.slice(0, 64),
-        title: title.trim().slice(0, 160),
+        title: finalTitle,
         notes: notes.trim().slice(0, 500),
       });
       onClose();
@@ -168,11 +165,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Deskripsi / Judul Transaksi
+              Deskripsi / Judul Transaksi (Opsional — otomatis sesuai kategori jika kosong)
             </label>
             <input
               type="text"
-              required
               maxLength={160}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
