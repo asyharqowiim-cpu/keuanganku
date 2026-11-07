@@ -76,7 +76,11 @@ const SHORT_MONTHS: Record<string, string> = {
 };
 
 export function formatMonthLabel(monthKey: string): string {
-  const [year, month] = monthKey.split('-');
+  const parts = monthKey.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]} ${INDONESIAN_MONTHS[parts[1]] || parts[1]} ${parts[0]}`;
+  }
+  const [year, month] = parts;
   if (!year || !month) return monthKey;
   return `${INDONESIAN_MONTHS[month] || month} ${year}`;
 }
@@ -89,6 +93,9 @@ export function formatShortMonth(monthKey: string): string {
 
 export function formatDateID(dateStr: string): string {
   const parts = dateStr.split('-');
+  if (parts.length === 2) {
+    return `${INDONESIAN_MONTHS[parts[1]] || parts[1]} ${parts[0]}`;
+  }
   if (parts.length !== 3) return dateStr;
   return `${parts[2]} ${SHORT_MONTHS[parts[1]] || parts[1]} ${parts[0]}`;
 }

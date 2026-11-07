@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   onAuthStateChanged,
   signInWithPopup,
@@ -287,7 +287,8 @@ export default function App() {
   const [authModalTab, setAuthModalTab] = useState<AuthModalTab>('login');
   const [showLandingPage, setShowLandingPage] = useState<boolean>(true);
 
-  const isCloudVerifiedUser = Boolean(currentUser && currentUser.emailVerified);
+  const isCloudVerifiedUser = Boolean(currentUser);
+  const syncedCloudIdsRef = useRef<Set<string>>(new Set());
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
@@ -390,10 +391,6 @@ export default function App() {
 
   const syncDatasetToCloud = useCallback(
     async (user: User, key: CryptoKey) => {
-      if (!user.emailVerified) {
-        setIsAuthModalOpen(true);
-        return;
-      }
       setIsSyncingCloud(true);
       const uid = user.uid;
       try {
@@ -405,22 +402,27 @@ export default function App() {
           );
           const path = `users/${uid}/transactions`;
           try {
-            await setDoc(doc(db, path, docId), {
-              userId: uid,
-              type: tx.type,
-              category: tx.category.slice(0, 64),
-              amount: Math.max(0, Math.round(tx.amount)),
-              date: tx.date,
-              monthKey: tx.monthKey,
-              account: tx.account.slice(0, 64),
-              title: tx.title.slice(0, 160),
-              encryptedPayload: enc.slice(0, 4096),
-              isEncrypted: true,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            });
+            syncedCloudIdsRef.current.add(docId);
+            await setDoc(
+              doc(db, path, docId),
+              {
+                userId: uid,
+                type: tx.type,
+                category: tx.category.slice(0, 64),
+                amount: Math.max(0, Math.round(tx.amount)),
+                date: tx.date,
+                monthKey: tx.monthKey,
+                account: tx.account.slice(0, 64),
+                title: tx.title.slice(0, 160),
+                encryptedPayload: enc.slice(0, 4096),
+                isEncrypted: true,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
           } catch (err) {
-            handleFirestoreError(err, OperationType.WRITE, path);
+            console.warn('Cloud sync tx error:', err);
           }
         }
 
@@ -432,21 +434,26 @@ export default function App() {
           );
           const path = `users/${uid}/savings`;
           try {
-            await setDoc(doc(db, path, docId), {
-              userId: uid,
-              name: sav.name.slice(0, 120),
-              category: sav.category.slice(0, 64),
-              targetAmount: Math.max(0, Math.round(sav.targetAmount)),
-              currentAmount: Math.max(0, Math.round(sav.currentAmount)),
-              monthlyContribution: Math.max(0, Math.round(sav.monthlyContribution)),
-              targetDate: sav.targetDate,
-              encryptedPayload: enc.slice(0, 4096),
-              isEncrypted: true,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            });
+            syncedCloudIdsRef.current.add(docId);
+            await setDoc(
+              doc(db, path, docId),
+              {
+                userId: uid,
+                name: sav.name.slice(0, 120),
+                category: sav.category.slice(0, 64),
+                targetAmount: Math.max(0, Math.round(sav.targetAmount)),
+                currentAmount: Math.max(0, Math.round(sav.currentAmount)),
+                monthlyContribution: Math.max(0, Math.round(sav.monthlyContribution)),
+                targetDate: sav.targetDate,
+                encryptedPayload: enc.slice(0, 4096),
+                isEncrypted: true,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
           } catch (err) {
-            handleFirestoreError(err, OperationType.WRITE, path);
+            console.warn('Cloud sync sav error:', err);
           }
         }
 
@@ -455,20 +462,25 @@ export default function App() {
           const enc = await encryptPayload({ category: bgt.category }, key);
           const path = `users/${uid}/budgets`;
           try {
-            await setDoc(doc(db, path, docId), {
-              userId: uid,
-              category: bgt.category.slice(0, 64),
-              monthKey: bgt.monthKey,
-              limitAmount: Math.max(0, Math.round(bgt.limitAmount)),
-              alertThreshold: Math.min(100, Math.max(50, Math.round(bgt.alertThreshold))),
-              notifyEnabled: Boolean(bgt.notifyEnabled),
-              encryptedPayload: enc.slice(0, 4096),
-              isEncrypted: true,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            });
+            syncedCloudIdsRef.current.add(docId);
+            await setDoc(
+              doc(db, path, docId),
+              {
+                userId: uid,
+                category: bgt.category.slice(0, 64),
+                monthKey: bgt.monthKey,
+                limitAmount: Math.max(0, Math.round(bgt.limitAmount)),
+                alertThreshold: Math.min(100, Math.max(1, Math.round(bgt.alertThreshold))),
+                notifyEnabled: Boolean(bgt.notifyEnabled),
+                encryptedPayload: enc.slice(0, 4096),
+                isEncrypted: true,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
           } catch (err) {
-            handleFirestoreError(err, OperationType.WRITE, path);
+            console.warn('Cloud sync bgt error:', err);
           }
         }
 
@@ -480,22 +492,27 @@ export default function App() {
           );
           const path = `users/${uid}/plans`;
           try {
-            await setDoc(doc(db, path, docId), {
-              userId: uid,
-              title: pln.title.slice(0, 160),
-              category: pln.category.slice(0, 64),
-              estimatedCost: Math.max(0, Math.round(pln.estimatedCost)),
-              allocatedAmount: Math.max(0, Math.round(pln.allocatedAmount)),
-              targetMonth: pln.targetMonth,
-              priority: pln.priority,
-              status: pln.status,
-              encryptedPayload: enc.slice(0, 4096),
-              isEncrypted: true,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            });
+            syncedCloudIdsRef.current.add(docId);
+            await setDoc(
+              doc(db, path, docId),
+              {
+                userId: uid,
+                title: pln.title.slice(0, 160),
+                category: pln.category.slice(0, 64),
+                estimatedCost: Math.max(0, Math.round(pln.estimatedCost)),
+                allocatedAmount: Math.max(0, Math.round(pln.allocatedAmount)),
+                targetMonth: pln.targetMonth,
+                priority: pln.priority,
+                status: pln.status,
+                encryptedPayload: enc.slice(0, 4096),
+                isEncrypted: true,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
           } catch (err) {
-            handleFirestoreError(err, OperationType.WRITE, path);
+            console.warn('Cloud sync pln error:', err);
           }
         }
       } finally {
@@ -506,52 +523,18 @@ export default function App() {
   );
 
   useEffect(() => {
-    if (!isAuthReady || !currentUser || !currentUser.emailVerified || !cryptoKey) return;
+    if (!isAuthReady || !currentUser || !cryptoKey) return;
     const uid = currentUser.uid;
 
     const txPath = `users/${uid}/transactions`;
     const unsubTx = onSnapshot(
       collection(db, txPath),
       async (snap) => {
-        if (snap.empty) {
-          const localRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.TXS);
-          if (localRaw) {
-            try {
-              const localList: TransactionItem[] = JSON.parse(localRaw);
-              if (Array.isArray(localList) && localList.length > 0) {
-                localStorage.removeItem(LOCAL_STORAGE_KEYS.TXS);
-                for (const tx of localList) {
-                  const docId = tx.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
-                  const enc = await encryptPayload(
-                    { title: tx.title, notes: tx.notes || '', amount: tx.amount },
-                    cryptoKey
-                  );
-                  await setDoc(doc(db, txPath, docId), {
-                    userId: uid,
-                    type: tx.type,
-                    category: tx.category.slice(0, 64),
-                    amount: Math.max(0, Math.round(tx.amount)),
-                    date: tx.date,
-                    monthKey: tx.monthKey,
-                    account: tx.account.slice(0, 64),
-                    title: tx.title.slice(0, 160),
-                    encryptedPayload: enc.slice(0, 4096),
-                    isEncrypted: true,
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
-                  });
-                }
-                return;
-              }
-            } catch {
-              // Ignore malformed local JSON
-            }
-          }
-          setTransactions([]);
-          return;
-        }
-        const items: TransactionItem[] = await Promise.all(
+        const remoteIds = new Set<string>();
+        const remoteItems: TransactionItem[] = await Promise.all(
           snap.docs.map(async (d) => {
+            remoteIds.add(d.id);
+            syncedCloudIdsRef.current.add(d.id);
             const raw = d.data();
             const dec = await decryptPayload<{ title?: string; notes?: string }>(
               raw.encryptedPayload,
@@ -575,54 +558,77 @@ export default function App() {
             };
           })
         );
-        items.sort((a, b) => b.date.localeCompare(a.date));
-        setTransactions(items);
+
+        // Check localStorage for any unsynced local transactions on this device (e.g. tablet)
+        const unsyncedLocal: TransactionItem[] = [];
+        const localRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.TXS);
+        if (localRaw) {
+          try {
+            const localList: TransactionItem[] = JSON.parse(localRaw);
+            if (Array.isArray(localList)) {
+              for (const tx of localList) {
+                const docId = tx.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
+                if (
+                  !remoteIds.has(docId) &&
+                  !syncedCloudIdsRef.current.has(docId) &&
+                  (!tx.userId || tx.userId === 'local_user' || tx.userId === uid)
+                ) {
+                  syncedCloudIdsRef.current.add(docId);
+                  unsyncedLocal.push({ ...tx, id: docId, userId: uid });
+                  const enc = await encryptPayload(
+                    { title: tx.title, notes: tx.notes || '', amount: tx.amount },
+                    cryptoKey
+                  );
+                  setDoc(
+                    doc(db, txPath, docId),
+                    {
+                      userId: uid,
+                      type: tx.type,
+                      category: tx.category.slice(0, 64),
+                      amount: Math.max(0, Math.round(tx.amount)),
+                      date: tx.date,
+                      monthKey: tx.monthKey,
+                      account: tx.account.slice(0, 64),
+                      title: tx.title.slice(0, 160),
+                      encryptedPayload: enc.slice(0, 4096),
+                      isEncrypted: true,
+                      createdAt: serverTimestamp(),
+                      updatedAt: serverTimestamp(),
+                    },
+                    { merge: true }
+                  ).catch((e) => console.warn('Auto-upload tx warning:', e));
+                }
+              }
+            }
+          } catch {
+            // Ignore malformed local JSON
+          }
+        }
+
+        const merged = [...unsyncedLocal, ...remoteItems].sort((a, b) =>
+          b.date.localeCompare(a.date)
+        );
+        setTransactions(merged);
+
+        if (merged.length > 0) {
+          setActiveMonth((prevMonth) => {
+            const hasInCurrent = merged.some((t) => t.monthKey === prevMonth);
+            return hasInCurrent ? prevMonth : merged[0].monthKey;
+          });
+        }
       },
-      (err) => handleFirestoreError(err, OperationType.GET, txPath)
+      (err) => console.warn('Firestore tx listener warning:', err)
     );
 
     const savPath = `users/${uid}/savings`;
     const unsubSav = onSnapshot(
       collection(db, savPath),
       async (snap) => {
-        if (snap.empty) {
-          const localRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.SAVINGS);
-          if (localRaw) {
-            try {
-              const localList: SavingGoalItem[] = JSON.parse(localRaw);
-              if (Array.isArray(localList) && localList.length > 0) {
-                localStorage.removeItem(LOCAL_STORAGE_KEYS.SAVINGS);
-                for (const sav of localList) {
-                  const docId = sav.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
-                  const enc = await encryptPayload(
-                    { name: sav.name, notes: sav.notes || '' },
-                    cryptoKey
-                  );
-                  await setDoc(doc(db, savPath, docId), {
-                    userId: uid,
-                    name: sav.name.slice(0, 120),
-                    category: sav.category.slice(0, 64),
-                    targetAmount: Math.max(0, Math.round(sav.targetAmount)),
-                    currentAmount: Math.max(0, Math.round(sav.currentAmount)),
-                    monthlyContribution: Math.max(0, Math.round(sav.monthlyContribution)),
-                    targetDate: sav.targetDate,
-                    encryptedPayload: enc.slice(0, 4096),
-                    isEncrypted: true,
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
-                  });
-                }
-                return;
-              }
-            } catch {
-              // Ignore malformed local JSON
-            }
-          }
-          setSavings([]);
-          return;
-        }
-        const items: SavingGoalItem[] = await Promise.all(
+        const remoteIds = new Set<string>();
+        const remoteItems: SavingGoalItem[] = await Promise.all(
           snap.docs.map(async (d) => {
+            remoteIds.add(d.id);
+            syncedCloudIdsRef.current.add(d.id);
             const raw = d.data();
             const dec = await decryptPayload<{ name?: string; notes?: string }>(
               raw.encryptedPayload,
@@ -643,48 +649,64 @@ export default function App() {
             };
           })
         );
-        setSavings(items);
+
+        const unsyncedLocal: SavingGoalItem[] = [];
+        const localRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.SAVINGS);
+        if (localRaw) {
+          try {
+            const localList: SavingGoalItem[] = JSON.parse(localRaw);
+            if (Array.isArray(localList)) {
+              for (const sav of localList) {
+                const docId = sav.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
+                if (
+                  !remoteIds.has(docId) &&
+                  !syncedCloudIdsRef.current.has(docId) &&
+                  (!sav.userId || sav.userId === 'local_user' || sav.userId === uid)
+                ) {
+                  syncedCloudIdsRef.current.add(docId);
+                  unsyncedLocal.push({ ...sav, id: docId, userId: uid });
+                  const enc = await encryptPayload(
+                    { name: sav.name, notes: sav.notes || '' },
+                    cryptoKey
+                  );
+                  setDoc(
+                    doc(db, savPath, docId),
+                    {
+                      userId: uid,
+                      name: sav.name.slice(0, 120),
+                      category: sav.category.slice(0, 64),
+                      targetAmount: Math.max(0, Math.round(sav.targetAmount)),
+                      currentAmount: Math.max(0, Math.round(sav.currentAmount)),
+                      monthlyContribution: Math.max(0, Math.round(sav.monthlyContribution)),
+                      targetDate: sav.targetDate,
+                      encryptedPayload: enc.slice(0, 4096),
+                      isEncrypted: true,
+                      createdAt: serverTimestamp(),
+                      updatedAt: serverTimestamp(),
+                    },
+                    { merge: true }
+                  ).catch((e) => console.warn('Auto-upload sav warning:', e));
+                }
+              }
+            }
+          } catch {
+            // Ignore malformed local JSON
+          }
+        }
+
+        setSavings([...unsyncedLocal, ...remoteItems]);
       },
-      (err) => handleFirestoreError(err, OperationType.GET, savPath)
+      (err) => console.warn('Firestore sav listener warning:', err)
     );
 
     const bgtPath = `users/${uid}/budgets`;
     const unsubBgt = onSnapshot(
       collection(db, bgtPath),
       async (snap) => {
-        if (snap.empty) {
-          const localRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.BUDGETS);
-          if (localRaw) {
-            try {
-              const localList: BudgetLimitItem[] = JSON.parse(localRaw);
-              if (Array.isArray(localList) && localList.length > 0) {
-                localStorage.removeItem(LOCAL_STORAGE_KEYS.BUDGETS);
-                for (const bgt of localList) {
-                  const docId = bgt.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
-                  const enc = await encryptPayload({ category: bgt.category }, cryptoKey);
-                  await setDoc(doc(db, bgtPath, docId), {
-                    userId: uid,
-                    category: bgt.category.slice(0, 64),
-                    monthKey: bgt.monthKey,
-                    limitAmount: Math.max(0, Math.round(bgt.limitAmount)),
-                    alertThreshold: Math.min(100, Math.max(50, Math.round(bgt.alertThreshold))),
-                    notifyEnabled: Boolean(bgt.notifyEnabled),
-                    encryptedPayload: enc.slice(0, 4096),
-                    isEncrypted: true,
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
-                  });
-                }
-                return;
-              }
-            } catch {
-              // Ignore malformed local JSON
-            }
-          }
-          setBudgets([]);
-          return;
-        }
-        const items: BudgetLimitItem[] = snap.docs.map((d) => {
+        const remoteIds = new Set<string>();
+        const remoteItems: BudgetLimitItem[] = snap.docs.map((d) => {
+          remoteIds.add(d.id);
+          syncedCloudIdsRef.current.add(d.id);
           const raw = d.data();
           return {
             id: d.id,
@@ -698,54 +720,61 @@ export default function App() {
             isEncrypted: Boolean(raw.isEncrypted),
           };
         });
-        setBudgets(items);
+
+        const unsyncedLocal: BudgetLimitItem[] = [];
+        const localRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.BUDGETS);
+        if (localRaw) {
+          try {
+            const localList: BudgetLimitItem[] = JSON.parse(localRaw);
+            if (Array.isArray(localList)) {
+              for (const bgt of localList) {
+                const docId = bgt.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
+                if (
+                  !remoteIds.has(docId) &&
+                  !syncedCloudIdsRef.current.has(docId) &&
+                  (!bgt.userId || bgt.userId === 'local_user' || bgt.userId === uid)
+                ) {
+                  syncedCloudIdsRef.current.add(docId);
+                  unsyncedLocal.push({ ...bgt, id: docId, userId: uid });
+                  const enc = await encryptPayload({ category: bgt.category }, cryptoKey);
+                  setDoc(
+                    doc(db, bgtPath, docId),
+                    {
+                      userId: uid,
+                      category: bgt.category.slice(0, 64),
+                      monthKey: bgt.monthKey,
+                      limitAmount: Math.max(0, Math.round(bgt.limitAmount)),
+                      alertThreshold: Math.min(100, Math.max(1, Math.round(bgt.alertThreshold))),
+                      notifyEnabled: Boolean(bgt.notifyEnabled),
+                      encryptedPayload: enc.slice(0, 4096),
+                      isEncrypted: true,
+                      createdAt: serverTimestamp(),
+                      updatedAt: serverTimestamp(),
+                    },
+                    { merge: true }
+                  ).catch((e) => console.warn('Auto-upload bgt warning:', e));
+                }
+              }
+            }
+          } catch {
+            // Ignore malformed local JSON
+          }
+        }
+
+        setBudgets([...unsyncedLocal, ...remoteItems]);
       },
-      (err) => handleFirestoreError(err, OperationType.GET, bgtPath)
+      (err) => console.warn('Firestore bgt listener warning:', err)
     );
 
     const plnPath = `users/${uid}/plans`;
     const unsubPln = onSnapshot(
       collection(db, plnPath),
       async (snap) => {
-        if (snap.empty) {
-          const localRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.PLANS);
-          if (localRaw) {
-            try {
-              const localList: FinancialPlanItem[] = JSON.parse(localRaw);
-              if (Array.isArray(localList) && localList.length > 0) {
-                localStorage.removeItem(LOCAL_STORAGE_KEYS.PLANS);
-                for (const pln of localList) {
-                  const docId = pln.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
-                  const enc = await encryptPayload(
-                    { title: pln.title, notes: pln.notes || '' },
-                    cryptoKey
-                  );
-                  await setDoc(doc(db, plnPath, docId), {
-                    userId: uid,
-                    title: pln.title.slice(0, 160),
-                    category: pln.category.slice(0, 64),
-                    estimatedCost: Math.max(0, Math.round(pln.estimatedCost)),
-                    allocatedAmount: Math.max(0, Math.round(pln.allocatedAmount)),
-                    targetMonth: pln.targetMonth,
-                    priority: pln.priority,
-                    status: pln.status,
-                    encryptedPayload: enc.slice(0, 4096),
-                    isEncrypted: true,
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
-                  });
-                }
-                return;
-              }
-            } catch {
-              // Ignore malformed local JSON
-            }
-          }
-          setPlans([]);
-          return;
-        }
-        const items: FinancialPlanItem[] = await Promise.all(
+        const remoteIds = new Set<string>();
+        const remoteItems: FinancialPlanItem[] = await Promise.all(
           snap.docs.map(async (d) => {
+            remoteIds.add(d.id);
+            syncedCloudIdsRef.current.add(d.id);
             const raw = d.data();
             const dec = await decryptPayload<{ title?: string; notes?: string }>(
               raw.encryptedPayload,
@@ -767,9 +796,55 @@ export default function App() {
             };
           })
         );
-        setPlans(items);
+
+        const unsyncedLocal: FinancialPlanItem[] = [];
+        const localRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.PLANS);
+        if (localRaw) {
+          try {
+            const localList: FinancialPlanItem[] = JSON.parse(localRaw);
+            if (Array.isArray(localList)) {
+              for (const pln of localList) {
+                const docId = pln.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
+                if (
+                  !remoteIds.has(docId) &&
+                  !syncedCloudIdsRef.current.has(docId) &&
+                  (!pln.userId || pln.userId === 'local_user' || pln.userId === uid)
+                ) {
+                  syncedCloudIdsRef.current.add(docId);
+                  unsyncedLocal.push({ ...pln, id: docId, userId: uid });
+                  const enc = await encryptPayload(
+                    { title: pln.title, notes: pln.notes || '' },
+                    cryptoKey
+                  );
+                  setDoc(
+                    doc(db, plnPath, docId),
+                    {
+                      userId: uid,
+                      title: pln.title.slice(0, 160),
+                      category: pln.category.slice(0, 64),
+                      estimatedCost: Math.max(0, Math.round(pln.estimatedCost)),
+                      allocatedAmount: Math.max(0, Math.round(pln.allocatedAmount)),
+                      targetMonth: pln.targetMonth,
+                      priority: pln.priority,
+                      status: pln.status,
+                      encryptedPayload: enc.slice(0, 4096),
+                      isEncrypted: true,
+                      createdAt: serverTimestamp(),
+                      updatedAt: serverTimestamp(),
+                    },
+                    { merge: true }
+                  ).catch((e) => console.warn('Auto-upload pln warning:', e));
+                }
+              }
+            }
+          } catch {
+            // Ignore malformed local JSON
+          }
+        }
+
+        setPlans([...unsyncedLocal, ...remoteItems]);
       },
-      (err) => handleFirestoreError(err, OperationType.GET, plnPath)
+      (err) => console.warn('Firestore pln listener warning:', err)
     );
 
     return () => {
@@ -781,14 +856,14 @@ export default function App() {
   }, [isAuthReady, currentUser, isCloudVerifiedUser, cryptoKey]);
 
   const handleClearAllData = async () => {
-    if (currentUser && currentUser.emailVerified) {
+    if (currentUser) {
       const uid = currentUser.uid;
       for (const t of transactions) {
         const path = `users/${uid}/transactions`;
         try {
           await deleteDoc(doc(db, path, t.id));
         } catch (err) {
-          handleFirestoreError(err, OperationType.DELETE, path);
+          console.warn('Delete tx warning:', err);
         }
       }
       for (const s of savings) {
@@ -796,7 +871,7 @@ export default function App() {
         try {
           await deleteDoc(doc(db, path, s.id));
         } catch (err) {
-          handleFirestoreError(err, OperationType.DELETE, path);
+          console.warn('Delete sav warning:', err);
         }
       }
       for (const b of budgets) {
@@ -804,7 +879,7 @@ export default function App() {
         try {
           await deleteDoc(doc(db, path, b.id));
         } catch (err) {
-          handleFirestoreError(err, OperationType.DELETE, path);
+          console.warn('Delete bgt warning:', err);
         }
       }
       for (const p of plans) {
@@ -812,7 +887,7 @@ export default function App() {
         try {
           await deleteDoc(doc(db, path, p.id));
         } catch (err) {
-          handleFirestoreError(err, OperationType.DELETE, path);
+          console.warn('Delete pln warning:', err);
         }
       }
     }
@@ -840,6 +915,7 @@ export default function App() {
 
   const handleSignOut = async () => {
     await signOut(auth);
+    syncedCloudIdsRef.current.clear();
     setShowLandingPage(true);
   };
 
@@ -861,7 +937,7 @@ export default function App() {
     const contextId = currentUser?.uid || 'local_vault_user';
     const newKey = await deriveVaultKey(newPass, contextId);
     setCryptoKey(newKey);
-    if (currentUser && currentUser.emailVerified) {
+    if (currentUser) {
       await syncDatasetToCloud(currentUser, newKey);
     }
   };
@@ -878,6 +954,7 @@ export default function App() {
   }) => {
     const monthKey = data.date.slice(0, 7);
     const docId = data.id || generateSafeId('tx');
+    syncedCloudIdsRef.current.add(docId);
     const enc = cryptoKey
       ? await encryptPayload(
           { title: data.title, notes: data.notes, amount: data.amount },
@@ -906,29 +983,19 @@ export default function App() {
       const next = exists
         ? prev.map((t) => (t.id === docId ? newItem : t))
         : [newItem, ...prev];
-      return next.sort((a, b) => b.date.localeCompare(a.date));
+      const sorted = next.sort((a, b) => b.date.localeCompare(a.date));
+      localStorage.setItem(LOCAL_STORAGE_KEYS.TXS, JSON.stringify(sorted));
+      return sorted;
     });
     setActiveMonth(monthKey);
 
-    if (currentUser && currentUser.emailVerified) {
+    if (currentUser) {
       const uid = currentUser.uid;
       const path = `users/${uid}/transactions`;
       try {
-        if (data.id) {
-          await updateDoc(doc(db, path, docId), {
-            type: data.type,
-            category: data.category.slice(0, 64),
-            amount: Math.round(data.amount),
-            date: data.date,
-            monthKey,
-            account: data.account.slice(0, 64),
-            title: data.title.slice(0, 160),
-            encryptedPayload: enc.slice(0, 4096),
-            isEncrypted: true,
-            updatedAt: serverTimestamp(),
-          });
-        } else {
-          await setDoc(doc(db, path, docId), {
+        await setDoc(
+          doc(db, path, docId),
+          {
             userId: uid,
             type: data.type,
             category: data.category.slice(0, 64),
@@ -939,10 +1006,11 @@ export default function App() {
             title: data.title.slice(0, 160),
             encryptedPayload: enc.slice(0, 4096),
             isEncrypted: true,
-            createdAt: serverTimestamp(),
+            ...(data.id ? {} : { createdAt: serverTimestamp() }),
             updatedAt: serverTimestamp(),
-          });
-        }
+          },
+          { merge: true }
+        );
       } catch (err) {
         console.warn('Cloud sync warning (saved locally):', err);
       }
@@ -950,8 +1018,13 @@ export default function App() {
   };
 
   const handleDeleteTransaction = async (id: string) => {
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
-    if (currentUser && currentUser.emailVerified) {
+    syncedCloudIdsRef.current.add(id);
+    setTransactions((prev) => {
+      const next = prev.filter((t) => t.id !== id);
+      localStorage.setItem(LOCAL_STORAGE_KEYS.TXS, JSON.stringify(next));
+      return next;
+    });
+    if (currentUser) {
       const path = `users/${currentUser.uid}/transactions`;
       try {
         await deleteDoc(doc(db, path, id));
@@ -972,6 +1045,7 @@ export default function App() {
     notes?: string;
   }) => {
     const docId = data.id || generateSafeId('sav');
+    syncedCloudIdsRef.current.add(docId);
     const enc = cryptoKey
       ? await encryptPayload({ name: data.name, notes: data.notes || '' }, cryptoKey)
       : 'v1:unencrypted:local';
@@ -992,29 +1066,20 @@ export default function App() {
 
     setSavings((prev) => {
       const exists = prev.some((s) => s.id === docId);
-      return exists
+      const next = exists
         ? prev.map((s) => (s.id === docId ? newItem : s))
         : [...prev, newItem];
+      localStorage.setItem(LOCAL_STORAGE_KEYS.SAVINGS, JSON.stringify(next));
+      return next;
     });
 
-    if (currentUser && currentUser.emailVerified) {
+    if (currentUser) {
       const uid = currentUser.uid;
       const path = `users/${uid}/savings`;
       try {
-        if (data.id) {
-          await updateDoc(doc(db, path, docId), {
-            name: data.name.slice(0, 120),
-            category: data.category.slice(0, 64),
-            targetAmount: Math.round(data.targetAmount),
-            currentAmount: Math.round(data.currentAmount),
-            monthlyContribution: Math.round(data.monthlyContribution),
-            targetDate: data.targetDate,
-            encryptedPayload: enc.slice(0, 4096),
-            isEncrypted: true,
-            updatedAt: serverTimestamp(),
-          });
-        } else {
-          await setDoc(doc(db, path, docId), {
+        await setDoc(
+          doc(db, path, docId),
+          {
             userId: uid,
             name: data.name.slice(0, 120),
             category: data.category.slice(0, 64),
@@ -1024,10 +1089,11 @@ export default function App() {
             targetDate: data.targetDate,
             encryptedPayload: enc.slice(0, 4096),
             isEncrypted: true,
-            createdAt: serverTimestamp(),
+            ...(data.id ? {} : { createdAt: serverTimestamp() }),
             updatedAt: serverTimestamp(),
-          });
-        }
+          },
+          { merge: true }
+        );
       } catch (err) {
         console.warn('Cloud sync warning (saved locally):', err);
       }
@@ -1040,15 +1106,17 @@ export default function App() {
       ? await encryptPayload({ name: goal.name, currentAmount: nextAmount }, cryptoKey)
       : goal.encryptedPayload;
 
-    setSavings((prev) =>
-      prev.map((s) =>
+    setSavings((prev) => {
+      const next = prev.map((s) =>
         s.id === goal.id
           ? { ...s, currentAmount: nextAmount, encryptedPayload: enc }
           : s
-      )
-    );
+      );
+      localStorage.setItem(LOCAL_STORAGE_KEYS.SAVINGS, JSON.stringify(next));
+      return next;
+    });
 
-    if (currentUser && currentUser.emailVerified) {
+    if (currentUser) {
       const path = `users/${currentUser.uid}/savings`;
       try {
         await updateDoc(doc(db, path, goal.id), {
@@ -1064,8 +1132,13 @@ export default function App() {
   };
 
   const handleDeleteSavingGoal = async (id: string) => {
-    setSavings((prev) => prev.filter((s) => s.id !== id));
-    if (currentUser && currentUser.emailVerified) {
+    syncedCloudIdsRef.current.add(id);
+    setSavings((prev) => {
+      const next = prev.filter((s) => s.id !== id);
+      localStorage.setItem(LOCAL_STORAGE_KEYS.SAVINGS, JSON.stringify(next));
+      return next;
+    });
+    if (currentUser) {
       const path = `users/${currentUser.uid}/savings`;
       try {
         await deleteDoc(doc(db, path, id));
@@ -1084,6 +1157,7 @@ export default function App() {
     notifyEnabled: boolean;
   }) => {
     const docId = data.id || generateSafeId('bgt');
+    syncedCloudIdsRef.current.add(docId);
     const enc = cryptoKey
       ? await encryptPayload({ category: data.category, limitAmount: data.limitAmount }, cryptoKey)
       : 'v1:unencrypted:local';
@@ -1102,28 +1176,20 @@ export default function App() {
 
     setBudgets((prev) => {
       const exists = prev.some((b) => b.id === docId);
-      return exists
+      const next = exists
         ? prev.map((b) => (b.id === docId ? newItem : b))
         : [...prev, newItem];
+      localStorage.setItem(LOCAL_STORAGE_KEYS.BUDGETS, JSON.stringify(next));
+      return next;
     });
 
-    if (currentUser && currentUser.emailVerified) {
+    if (currentUser) {
       const uid = currentUser.uid;
       const path = `users/${uid}/budgets`;
       try {
-        if (data.id) {
-          await updateDoc(doc(db, path, docId), {
-            category: data.category.slice(0, 64),
-            monthKey: data.monthKey,
-            limitAmount: Math.round(data.limitAmount),
-            alertThreshold: Math.round(data.alertThreshold),
-            notifyEnabled: data.notifyEnabled,
-            encryptedPayload: enc.slice(0, 4096),
-            isEncrypted: true,
-            updatedAt: serverTimestamp(),
-          });
-        } else {
-          await setDoc(doc(db, path, docId), {
+        await setDoc(
+          doc(db, path, docId),
+          {
             userId: uid,
             category: data.category.slice(0, 64),
             monthKey: data.monthKey,
@@ -1132,10 +1198,11 @@ export default function App() {
             notifyEnabled: data.notifyEnabled,
             encryptedPayload: enc.slice(0, 4096),
             isEncrypted: true,
-            createdAt: serverTimestamp(),
+            ...(data.id ? {} : { createdAt: serverTimestamp() }),
             updatedAt: serverTimestamp(),
-          });
-        }
+          },
+          { merge: true }
+        );
       } catch (err) {
         console.warn('Cloud sync warning (saved locally):', err);
       }
@@ -1143,8 +1210,13 @@ export default function App() {
   };
 
   const handleDeleteBudgetLimit = async (id: string) => {
-    setBudgets((prev) => prev.filter((b) => b.id !== id));
-    if (currentUser && currentUser.emailVerified) {
+    syncedCloudIdsRef.current.add(id);
+    setBudgets((prev) => {
+      const next = prev.filter((b) => b.id !== id);
+      localStorage.setItem(LOCAL_STORAGE_KEYS.BUDGETS, JSON.stringify(next));
+      return next;
+    });
+    if (currentUser) {
       const path = `users/${currentUser.uid}/budgets`;
       try {
         await deleteDoc(doc(db, path, id));
@@ -1166,6 +1238,7 @@ export default function App() {
     notes?: string;
   }) => {
     const docId = data.id || generateSafeId('pln');
+    syncedCloudIdsRef.current.add(docId);
     const enc = cryptoKey
       ? await encryptPayload({ title: data.title, notes: data.notes || '' }, cryptoKey)
       : 'v1:unencrypted:local';
@@ -1187,30 +1260,20 @@ export default function App() {
 
     setPlans((prev) => {
       const exists = prev.some((p) => p.id === docId);
-      return exists
+      const next = exists
         ? prev.map((p) => (p.id === docId ? newItem : p))
         : [newItem, ...prev];
+      localStorage.setItem(LOCAL_STORAGE_KEYS.PLANS, JSON.stringify(next));
+      return next;
     });
 
-    if (currentUser && currentUser.emailVerified) {
+    if (currentUser) {
       const uid = currentUser.uid;
       const path = `users/${uid}/plans`;
       try {
-        if (data.id) {
-          await updateDoc(doc(db, path, docId), {
-            title: data.title.slice(0, 160),
-            category: data.category.slice(0, 64),
-            estimatedCost: Math.round(data.estimatedCost),
-            allocatedAmount: Math.round(data.allocatedAmount),
-            targetMonth: data.targetMonth,
-            priority: data.priority,
-            status: data.status,
-            encryptedPayload: enc.slice(0, 4096),
-            isEncrypted: true,
-            updatedAt: serverTimestamp(),
-          });
-        } else {
-          await setDoc(doc(db, path, docId), {
+        await setDoc(
+          doc(db, path, docId),
+          {
             userId: uid,
             title: data.title.slice(0, 160),
             category: data.category.slice(0, 64),
@@ -1221,10 +1284,11 @@ export default function App() {
             status: data.status,
             encryptedPayload: enc.slice(0, 4096),
             isEncrypted: true,
-            createdAt: serverTimestamp(),
+            ...(data.id ? {} : { createdAt: serverTimestamp() }),
             updatedAt: serverTimestamp(),
-          });
-        }
+          },
+          { merge: true }
+        );
       } catch (err) {
         console.warn('Cloud sync warning (saved locally):', err);
       }
@@ -1248,7 +1312,7 @@ export default function App() {
       type: 'expense',
       category: plan.category,
       amount: plan.estimatedCost,
-      date: `${activeMonth}-05`,
+      date: plan.targetMonth.length === 10 ? plan.targetMonth : `${activeMonth}-05`,
       account: 'BCA Prioritas / Utama',
       title: `${plan.title}`.slice(0, 160),
       notes: 'Realisasi dari Perencanaan Keuangan',
@@ -1256,8 +1320,13 @@ export default function App() {
   };
 
   const handleDeleteFinancialPlan = async (id: string) => {
-    setPlans((prev) => prev.filter((p) => p.id !== id));
-    if (currentUser && currentUser.emailVerified) {
+    syncedCloudIdsRef.current.add(id);
+    setPlans((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      localStorage.setItem(LOCAL_STORAGE_KEYS.PLANS, JSON.stringify(next));
+      return next;
+    });
+    if (currentUser) {
       const path = `users/${currentUser.uid}/plans`;
       try {
         await deleteDoc(doc(db, path, id));
@@ -1277,7 +1346,7 @@ export default function App() {
       if (b.monthKey) set.add(b.monthKey);
     });
     plans.forEach((p) => {
-      if (p.targetMonth) set.add(p.targetMonth);
+      if (p.targetMonth) set.add(p.targetMonth.slice(0, 7));
     });
     return Array.from(set).sort();
   }, [activeMonth, transactions, budgets, plans]);

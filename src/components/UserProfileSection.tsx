@@ -180,27 +180,35 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({
       {/* MAIN PROFILE CARD */}
       <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 rounded-3xl overflow-hidden shadow-lg shadow-blue-950/5">
         {/* Top Blue Accent Banner */}
-        <div className="h-24 sm:h-28 bg-gradient-to-r from-blue-600 via-blue-700 to-sky-500 relative" />
+        <div className="h-16 sm:h-20 bg-gradient-to-r from-blue-600 via-blue-700 to-sky-500 px-5 sm:px-8 flex items-center justify-between">
+          <span className="text-xs sm:text-sm font-bold tracking-wide text-white/90 uppercase">
+            Profil & Identitas Akun Cloud
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-white/20 text-white backdrop-blur-sm">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Sinkron Cloud Aktif
+          </span>
+        </div>
 
-        <div className="px-5 sm:px-8 pb-6 sm:pb-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 -mt-12 mb-6">
-            <div className="flex flex-col sm:flex-row sm:items-end gap-3.5 sm:gap-4 min-w-0">
+        <div className="px-5 sm:px-8 py-6 sm:py-7 relative z-10">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 min-w-0">
               {currentUser.photoURL ? (
                 <img
                   src={currentUser.photoURL}
                   alt={currentUser.displayName || 'Foto Profil'}
                   referrerPolicy="no-referrer"
-                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-4 border-white dark:border-slate-900 shadow-lg bg-white dark:bg-slate-800 shrink-0"
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-blue-100 dark:border-slate-700 shadow-md bg-white dark:bg-slate-800 shrink-0"
                 />
               ) : (
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-blue-600 text-white font-extrabold text-2xl sm:text-3xl flex items-center justify-center border-4 border-white dark:border-slate-900 shadow-lg shrink-0">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-blue-600 text-white font-extrabold text-2xl sm:text-3xl flex items-center justify-center border-2 border-blue-100 dark:border-slate-700 shadow-md shrink-0">
                   {userInitial}
                 </div>
               )}
 
-              <div className="pb-1 space-y-1 min-w-0">
+              <div className="space-y-1.5 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white truncate">
+                  <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white break-words">
                     {currentUser.displayName || 'Pengguna Keuanganku'}
                   </h2>
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 shrink-0">
@@ -216,12 +224,12 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({
             </div>
 
             {/* Edit Profile & Logout Quick Buttons */}
-            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto shrink-0">
               {!isEditing && (
                 <button
                   type="button"
                   onClick={() => setIsEditing(true)}
-                  className="flex-1 md:flex-initial justify-center px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
+                  className="flex-1 sm:flex-initial justify-center px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl inline-flex items-center gap-1.5 cursor-pointer transition-colors"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
                   <span>Ubah Profil</span>
@@ -230,7 +238,7 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({
               <button
                 type="button"
                 onClick={onSignOut}
-                className="flex-1 md:flex-initial justify-center px-4 py-2.5 text-xs sm:text-sm font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
+                className="flex-1 sm:flex-initial justify-center px-4 py-2.5 text-xs sm:text-sm font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-xl inline-flex items-center gap-1.5 cursor-pointer transition-colors"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Keluar Akun</span>

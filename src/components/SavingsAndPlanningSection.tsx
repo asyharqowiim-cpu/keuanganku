@@ -26,9 +26,9 @@ import {
   formatIDR,
   formatCompactIDR,
   formatMonthLabel,
+  formatDateID,
   formatRupiahInput,
   parseRupiahInput,
-  AVAILABLE_MONTHS,
 } from '../utils/formatters';
 import { CurrencyInput } from './CurrencyInput';
 
@@ -124,7 +124,7 @@ export const SavingsAndPlanningSection: React.FC<SavingsAndPlanningSectionProps>
   const [planCategory, setPlanCategory] = useState(EXPENSE_CATEGORIES[0]);
   const [planCost, setPlanCost] = useState('');
   const [planAllocated, setPlanAllocated] = useState('');
-  const [planMonth, setPlanMonth] = useState(activeMonth);
+  const [planMonth, setPlanMonth] = useState(`${activeMonth}-15`);
   const [planPriority, setPlanPriority] = useState<PlanPriority>('medium');
   const [planError, setPlanError] = useState('');
 
@@ -225,7 +225,9 @@ export const SavingsAndPlanningSection: React.FC<SavingsAndPlanningSectionProps>
     setPlanCategory(plan.category);
     setPlanCost(formatRupiahInput(plan.estimatedCost));
     setPlanAllocated(formatRupiahInput(plan.allocatedAmount));
-    setPlanMonth(plan.targetMonth);
+    setPlanMonth(
+      plan.targetMonth.length === 7 ? `${plan.targetMonth}-15` : plan.targetMonth
+    );
     setPlanPriority(plan.priority);
     setPlanError('');
     setShowPlanForm(true);
@@ -852,19 +854,15 @@ export const SavingsAndPlanningSection: React.FC<SavingsAndPlanningSectionProps>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Target Bulan
+                  Target
                 </label>
-                <select
+                <input
+                  type="date"
+                  required
                   value={planMonth}
                   onChange={(e) => setPlanMonth(e.target.value)}
-                  className="w-full px-3 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
-                >
-                  {AVAILABLE_MONTHS.map((m) => (
-                    <option key={m} value={m}>
-                      {formatMonthLabel(m)}
-                    </option>
-                  ))}
-                </select>
+                  className="w-full px-3 py-2.5 text-xs sm:text-sm font-mono rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
@@ -938,7 +936,7 @@ export const SavingsAndPlanningSection: React.FC<SavingsAndPlanningSectionProps>
                     </div>
                     <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-2">
                       <span className="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-sky-300 font-semibold">
-                        {formatMonthLabel(plan.targetMonth)}
+                        Target: {formatDateID(plan.targetMonth)}
                       </span>
                       <span>·</span>
                       <span>{plan.category}</span>
