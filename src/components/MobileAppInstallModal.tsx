@@ -8,9 +8,9 @@ import {
   Package,
   WifiOff,
   Sparkles,
-  AlertTriangle,
   Copy,
   Check,
+  FileCode2,
 } from 'lucide-react';
 import { usePWAInstall, useOnlineStatus } from '../hooks/usePWAInstall';
 
@@ -18,6 +18,69 @@ interface MobileAppInstallModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+export const PWABUILDER_READY_MANIFEST = JSON.stringify(
+  {
+    id: '/',
+    name: 'Keuanganku — Manajemen Keuangan Pribadi',
+    short_name: 'Keuanganku',
+    description:
+      'Aplikasi manajemen keuangan pribadi lengkap dengan pencatatan pemasukan, pengeluaran, tabungan, perencanaan anggaran, laporan PDF, dan sinkronisasi Cloud.',
+    lang: 'id-ID',
+    dir: 'ltr',
+    start_url: '/',
+    scope: '/',
+    display: 'standalone',
+    display_override: ['standalone', 'window-controls-overlay'],
+    orientation: 'portrait',
+    theme_color: '#2563eb',
+    background_color: '#0f172a',
+    categories: ['finance', 'productivity', 'utilities'],
+    prefer_related_applications: false,
+    related_applications: [],
+    launch_handler: {
+      client_mode: 'navigate-existing',
+    },
+    icons: [
+      {
+        src: 'https://placehold.co/192x192/0f172a/38bdf8.png?text=Keuanganku',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: 'https://placehold.co/512x512/0f172a/38bdf8.png?text=Keuanganku',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: 'https://placehold.co/512x512/0f172a/38bdf8.png?text=Keuanganku',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
+    ],
+    screenshots: [
+      {
+        src: 'https://placehold.co/540x960/0f172a/38bdf8.png?text=Keuanganku+Mobile',
+        sizes: '540x960',
+        type: 'image/png',
+        form_factor: 'narrow',
+        label: 'Tampilan Mobile Keuanganku',
+      },
+      {
+        src: 'https://placehold.co/1280x720/0f172a/38bdf8.png?text=Keuanganku+Dashboard',
+        sizes: '1280x720',
+        type: 'image/png',
+        form_factor: 'wide',
+        label: 'Dashboard Lengkap Keuanganku',
+      },
+    ],
+  },
+  null,
+  2
+);
 
 export const OfflineIndicator: React.FC = () => {
   const isOnline = useOnlineStatus();
@@ -76,19 +139,17 @@ export const MobileAppInstallModal: React.FC<MobileAppInstallModalProps> = ({
   onClose,
 }) => {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
-  const [activeTab, setActiveTab] = useState<'apk' | 'pwa' | 'ios'>(
-    isIOS ? 'ios' : 'apk'
+  const [activeTab, setActiveTab] = useState<'pwabuilder' | 'pwa' | 'ios'>(
+    isIOS ? 'ios' : 'pwabuilder'
   );
-  const [copiedUrl, setCopiedUrl] = useState(false);
+  const [copiedManifest, setCopiedManifest] = useState(false);
 
   if (!isOpen) return null;
 
-  const appPublicUrl = window.location.origin;
-
-  const handleCopyUrl = () => {
-    navigator.clipboard?.writeText(appPublicUrl);
-    setCopiedUrl(true);
-    setTimeout(() => setCopiedUrl(false), 2000);
+  const handleCopyManifest = () => {
+    navigator.clipboard?.writeText(PWABUILDER_READY_MANIFEST);
+    setCopiedManifest(true);
+    setTimeout(() => setCopiedManifest(false), 2500);
   };
 
   const handleDownloadIcon = () => {
@@ -110,10 +171,10 @@ export const MobileAppInstallModal: React.FC<MobileAppInstallModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
-                Jadikan Aplikasi Mobile (APK / Android / iOS)
+                Solusi PWABuilder & Instal Aplikasi Mobile
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Solusi lengkap instal langsung di HP atau buat file .APK tanpa gagal di PWABuilder
+                Atasi &quot;Manifest Timed Out&quot; di PWABuilder atau instal langsung di HP
               </p>
             </div>
           </div>
@@ -126,45 +187,18 @@ export const MobileAppInstallModal: React.FC<MobileAppInstallModalProps> = ({
           </button>
         </div>
 
-        {/* Status Banner */}
-        <div className="p-4 rounded-2xl bg-blue-50/90 dark:bg-blue-950/50 border border-blue-200/80 dark:border-blue-800/80 flex flex-wrap items-center justify-between gap-3">
-          <div className="space-y-0.5">
-            <div className="text-xs sm:text-sm font-extrabold text-blue-950 dark:text-sky-200 flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-blue-600 dark:text-sky-400" />
-              <span>
-                {isInstalled
-                  ? 'Aplikasi Sudah Terinstal di Perangkat Ini!'
-                  : 'Manifest.json & Service Worker Statis Sudah Aktif'}
-              </span>
-            </div>
-            <p className="text-xs text-blue-800/80 dark:text-sky-300/80">
-              Pilih salah satu dari 3 metode di bawah untuk menginstal di HP atau membuat file APK.
-            </p>
-          </div>
-          {isInstallable && !isInstalled && (
-            <button
-              type="button"
-              onClick={install}
-              className="px-4 py-2.5 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/20 inline-flex items-center gap-1.5 cursor-pointer shrink-0"
-            >
-              <Download className="w-4 h-4" />
-              <span>Instal Sekarang (1-Klik)</span>
-            </button>
-          )}
-        </div>
-
         {/* Platform Selector Tabs */}
         <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold">
           <button
             type="button"
-            onClick={() => setActiveTab('apk')}
+            onClick={() => setActiveTab('pwabuilder')}
             className={`py-2 px-2.5 rounded-lg transition-colors cursor-pointer ${
-              activeTab === 'apk'
+              activeTab === 'pwabuilder'
                 ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-sky-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400'
             }`}
           >
-            Solusi Buat .APK
+            Solusi PWABuilder
           </button>
           <button
             type="button"
@@ -175,7 +209,7 @@ export const MobileAppInstallModal: React.FC<MobileAppInstallModalProps> = ({
                 : 'text-slate-600 dark:text-slate-400'
             }`}
           >
-            Instal Tanpa APK
+            Instal Langsung HP
           </button>
           <button
             type="button"
@@ -190,71 +224,55 @@ export const MobileAppInstallModal: React.FC<MobileAppInstallModalProps> = ({
           </button>
         </div>
 
-        {activeTab === 'apk' && (
-          <div className="space-y-3.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
-            {/* Explanation why PWABuilder fails on AI Studio preview URLs */}
-            <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 space-y-1.5">
-              <div className="font-extrabold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>Kenapa Link Preview AI Studio Ditolak PWABuilder?</span>
+        {activeTab === 'pwabuilder' && (
+          <div className="space-y-4 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
+            <div className="p-4 rounded-2xl bg-blue-50/90 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 space-y-3">
+              <div className="font-extrabold text-blue-950 dark:text-sky-200 flex items-center gap-2">
+                <FileCode2 className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>Cara Mengatasi &quot;Edit Your Manifest&quot; di PWABuilder:</span>
               </div>
-              <p className="text-xs text-amber-800 dark:text-amber-200/90 leading-relaxed">
-                Link preview AI Studio (<code>ais-dev-...</code> / <code>ais-pre-...</code>) memiliki layar proteksi cookie Google sehingga bot eksternal seperti <strong>PWABuilder</strong> diblokir saat mencoba memindai URL secara langsung.
-              </p>
-            </div>
-
-            {/* Solution 1: WebIntoApp (Works with any URL + Icon) */}
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-3">
-              <h3 className="font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <Package className="w-4 h-4 text-blue-600 shrink-0" />
-                <span>Cara 1: Buat File .APK via WebIntoApp.com (100% Berhasil)</span>
-              </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Berbeda dengan PWABuilder, <strong>WebIntoApp.com</strong> tidak memblokir URL aplikasi dan langsung menghasilkan file <code>.apk</code> Android siap instal:
-              </p>
-              <ol className="list-decimal list-inside space-y-1.5 text-xs leading-relaxed">
-                <li>Salin URL aplikasi dan unduh ikon 512x512 melalui tombol di bawah.</li>
-                <li>Buka situs <strong>webintoapp.com/store/maker</strong> di browser.</li>
-                <li>Masukkan Nama: <strong>Keuanganku</strong>, tempel URL, dan unggah ikon 512x512.</li>
-                <li>Klik <strong>Next &rarr; Make App (Free)</strong> lalu unduh file <code>.apk</code> Android Anda.</li>
+              <ol className="list-decimal list-inside space-y-2 text-xs leading-relaxed text-slate-700 dark:text-slate-200">
+                <li>
+                  Klik tombol <strong>&quot;Salin Kode JSON Manifest&quot;</strong> di bawah ini.
+                </li>
+                <li>
+                  Di halaman <strong>PWABuilder</strong> yang sedang terbuka di HP Anda, ketuk tombol ungu <strong>&quot;Edit Your Manifest&quot;</strong> (di kanan atas).
+                </li>
+                <li>
+                  Pilih tab <strong>Code</strong> (atau kotak editor kode JSON), hapus isinya, lalu <strong>Tempel (Paste)</strong> kode JSON yang baru Anda salin.
+                </li>
+                <li>
+                  Semua tanda seru merah (<em>Required: name, icons, short_name, start_url</em>) dan kuning (<em>Recommended</em>) akan langsung berubah menjadi <strong>Hijau / Valid</strong>, dan tombol <strong>Package For Store &rarr; Android (Download APK)</strong> akan langsung aktif!
+                </li>
               </ol>
+
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={handleCopyUrl}
-                  className="px-3.5 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
+                  onClick={handleCopyManifest}
+                  className="px-4 py-2.5 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/20 inline-flex items-center gap-1.5 cursor-pointer"
                 >
-                  {copiedUrl ? (
+                  {copiedManifest ? (
                     <>
-                      <Check className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>URL Tersalin!</span>
+                      <Check className="w-4 h-4" />
+                      <span>Kode JSON Manifest Tersalin!</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="w-3.5 h-3.5 text-blue-600" />
-                      <span>Salin URL Aplikasi</span>
+                      <Copy className="w-4 h-4" />
+                      <span>Salin Kode JSON Manifest PWABuilder</span>
                     </>
                   )}
                 </button>
                 <button
                   type="button"
                   onClick={handleDownloadIcon}
-                  className="px-3.5 py-2 text-xs font-bold text-blue-700 dark:text-sky-300 bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
+                  className="px-3.5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Unduh Ikon App (512x512 PNG)</span>
+                  <span>Unduh Ikon 512x512 PNG</span>
                 </button>
               </div>
-            </div>
-
-            {/* Solution 2: How to use PWABuilder after deploying to Cloud Run / Vercel / Firebase */}
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-2">
-              <div className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
-                Cara 2: Agar Bisa Dipindai PWABuilder (Deploy ke Cloud Run / Vercel)
-              </div>
-              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                File <code>/manifest.json</code> dan <code>/sw.js</code> statis kini sudah ditambahkan ke aplikasi ini lengkap dengan <code>screenshots</code>. Jika Anda men-deploy aplikasi ini ke <strong>Google Cloud Run</strong> (tombol Deploy di AI Studio), <strong>Vercel</strong>, atau <strong>Firebase Hosting</strong>, URL publik hasil deploy tersebut bisa langsung dimasukkan ke <strong>PWABuilder.com</strong> tanpa error.
-              </p>
             </div>
           </div>
         )}
@@ -264,17 +282,14 @@ export const MobileAppInstallModal: React.FC<MobileAppInstallModalProps> = ({
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-2.5">
               <h3 className="font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Cara Instal Langsung di HP Android (Tanpa PWABuilder)</span>
+                <span>Cara Instal Langsung dari Chrome Android (Tanpa PWABuilder)</span>
               </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-400">
-                Anda sebenarnya <strong>tidak perlu membuat file APK di PWABuilder</strong> untuk menjadikannya aplikasi di HP Android Anda:
-              </p>
               <ol className="list-decimal list-inside space-y-2 text-xs sm:text-sm leading-relaxed">
                 <li>
-                  Buka link aplikasi ini langsung di browser <strong>Google Chrome</strong> pada HP Android Anda.
+                  Buka aplikasi <strong>Keuanganku</strong> di browser <strong>Google Chrome</strong> pada HP Android Anda.
                 </li>
                 <li>
-                  Ketuk ikon <strong>Titik Tiga (⋮)</strong> di pojok kanan atas browser Chrome.
+                  Ketuk ikon <strong>Titik Tiga (⋮)</strong> di pojok kanan atas Chrome.
                 </li>
                 <li>
                   Pilih menu <strong>&quot;Tambahkan ke Layar Utama&quot; (Add to Home Screen)</strong> atau <strong>&quot;Instal aplikasi&quot;</strong>.
@@ -283,6 +298,16 @@ export const MobileAppInstallModal: React.FC<MobileAppInstallModalProps> = ({
                   Aplikasi <strong>Keuanganku</strong> langsung terinstal di layar HP Anda dan berjalan layar penuh tanpa bar browser.
                 </li>
               </ol>
+              {isInstallable && !isInstalled && (
+                <button
+                  type="button"
+                  onClick={install}
+                  className="mt-2 px-4 py-2.5 text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Instal Langsung Sekarang</span>
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -299,13 +324,10 @@ export const MobileAppInstallModal: React.FC<MobileAppInstallModalProps> = ({
                   Buka aplikasi <strong>Keuanganku</strong> menggunakan browser <strong>Safari</strong> di iPhone/iPad.
                 </li>
                 <li>
-                  Ketuk tombol <strong>Bagikan (Share)</strong> di bilah bawah Safari (ikon kotak dengan panah ke atas).
+                  Ketuk tombol <strong>Bagikan (Share)</strong> di bilah bawah Safari.
                 </li>
                 <li>
                   Gulir ke bawah dan pilih <strong>&quot;Tambah ke Layar Utama&quot; (Add to Home Screen)</strong>.
-                </li>
-                <li>
-                  Ketuk <strong>Tambah (Add)</strong> di pojok kanan atas. Aplikasi siap dibuka langsung dari Home Screen iPhone Anda.
                 </li>
               </ol>
             </div>
