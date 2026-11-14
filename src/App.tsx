@@ -86,6 +86,11 @@ import { SavingsAndPlanningSection } from './components/SavingsAndPlanningSectio
 import { AuthModal, AuthModalTab } from './components/AuthModal';
 import { LandingPage } from './components/LandingPage';
 import { UserProfileSection } from './components/UserProfileSection';
+import {
+  MobileAppInstallModal,
+  PWAInstallButton,
+  OfflineIndicator,
+} from './components/MobileAppInstallModal';
 
 type ActiveTab = 'overview' | 'transactions' | 'savings' | 'planning' | 'profile';
 
@@ -290,6 +295,7 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalTab, setAuthModalTab] = useState<AuthModalTab>('login');
   const [showLandingPage, setShowLandingPage] = useState<boolean>(true);
+  const [isMobileInstallModalOpen, setIsMobileInstallModalOpen] = useState<boolean>(false);
 
   const isCloudVerifiedUser = Boolean(currentUser);
   const syncedCloudIdsRef = useRef<Set<string>>(new Set());
@@ -1802,6 +1808,10 @@ export default function App() {
               </button>
             )}
 
+            <PWAInstallButton
+              onOpenGuideModal={() => setIsMobileInstallModalOpen(true)}
+            />
+
             <button
               type="button"
               onClick={() => setIsVaultModalOpen(true)}
@@ -2339,8 +2349,8 @@ export default function App() {
         )}
       </main>
 
-      <footer className="max-w-7xl xl:max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-10 py-8 border-t border-slate-200/60 dark:border-slate-800/60 text-xs sm:text-sm text-slate-500 dark:text-slate-400 flex flex-wrap items-center justify-between gap-4">
-        <span>Keuanganku · Manajemen Keuangan Pribadi</span>
+      <footer className="max-w-7xl xl:max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-10 py-8 pb-24 lg:pb-8 border-t border-slate-200/60 dark:border-slate-800/60 text-xs sm:text-sm text-slate-500 dark:text-slate-400 flex flex-wrap items-center justify-between gap-4">
+        <span>Keuanganku · Manajemen Keuangan Pribadi (Web & Mobile PWA)</span>
         {(transactions.length > 0 ||
           savings.length > 0 ||
           budgets.length > 0 ||
@@ -2378,6 +2388,84 @@ export default function App() {
           </div>
         )}
       </footer>
+
+      {/* Native-Style Mobile Bottom Navigation Dock */}
+      <nav
+        aria-label="Navigasi Bawah Aplikasi Mobile"
+        className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800 px-2 py-1.5 shadow-lg"
+      >
+        <div className="max-w-md mx-auto grid grid-cols-5 items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`py-1.5 rounded-xl flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
+              activeTab === 'overview'
+                ? 'text-blue-600 dark:text-sky-400'
+                : 'text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            <span>Ringkasan</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('transactions')}
+            className={`py-1.5 rounded-xl flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
+              activeTab === 'transactions'
+                ? 'text-blue-600 dark:text-sky-400'
+                : 'text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            <ListOrdered className="w-4 h-4" />
+            <span>Transaksi</span>
+          </button>
+          <div className="flex items-center justify-center -mt-5">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingTx(null);
+                setTxModalDefaultType('expense');
+                setIsTxModalOpen(true);
+              }}
+              aria-label="Catat Transaksi Cepat"
+              className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-lg shadow-blue-600/30 flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+            >
+              <Plus className="w-6 h-6" />
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('savings')}
+            className={`py-1.5 rounded-xl flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
+              activeTab === 'savings'
+                ? 'text-blue-600 dark:text-sky-400'
+                : 'text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            <PiggyBank className="w-4 h-4" />
+            <span>Tabungan</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('planning')}
+            className={`py-1.5 rounded-xl flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
+              activeTab === 'planning'
+                ? 'text-blue-600 dark:text-sky-400'
+                : 'text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            <CalendarRange className="w-4 h-4" />
+            <span>Planning</span>
+          </button>
+        </div>
+      </nav>
+
+      <OfflineIndicator />
+
+      <MobileAppInstallModal
+        isOpen={isMobileInstallModalOpen}
+        onClose={() => setIsMobileInstallModalOpen(false)}
+      />
 
       <TransactionModal
         isOpen={isTxModalOpen}
