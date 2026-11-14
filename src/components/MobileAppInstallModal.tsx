@@ -8,6 +8,9 @@ import {
   Package,
   WifiOff,
   Sparkles,
+  AlertTriangle,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { usePWAInstall, useOnlineStatus } from '../hooks/usePWAInstall';
 
@@ -73,11 +76,29 @@ export const MobileAppInstallModal: React.FC<MobileAppInstallModalProps> = ({
   onClose,
 }) => {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
-  const [activeTab, setActiveTab] = useState<'pwa' | 'ios' | 'apk'>(
-    isIOS ? 'ios' : 'pwa'
+  const [activeTab, setActiveTab] = useState<'apk' | 'pwa' | 'ios'>(
+    isIOS ? 'ios' : 'apk'
   );
+  const [copiedUrl, setCopiedUrl] = useState(false);
 
   if (!isOpen) return null;
+
+  const appPublicUrl = window.location.origin;
+
+  const handleCopyUrl = () => {
+    navigator.clipboard?.writeText(appPublicUrl);
+    setCopiedUrl(true);
+    setTimeout(() => setCopiedUrl(false), 2000);
+  };
+
+  const handleDownloadIcon = () => {
+    const link = document.createElement('a');
+    link.href = '/pwa-512x512.png';
+    link.download = 'keuanganku-icon-512x512.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/65 backdrop-blur-xs p-0 sm:p-4">
@@ -89,10 +110,10 @@ export const MobileAppInstallModal: React.FC<MobileAppInstallModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
-                Jadikan Aplikasi Mobile (Android & iOS)
+                Jadikan Aplikasi Mobile (APK / Android / iOS)
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Keuanganku sudah dilengkapi teknologi PWA & siap diinstal di layar utama HP Anda
+                Solusi lengkap instal langsung di HP atau buat file .APK tanpa gagal di PWABuilder
               </p>
             </div>
           </div>
@@ -113,11 +134,11 @@ export const MobileAppInstallModal: React.FC<MobileAppInstallModalProps> = ({
               <span>
                 {isInstalled
                   ? 'Aplikasi Sudah Terinstal di Perangkat Ini!'
-                  : 'Siap Diinstal Sebagai Aplikasi Mobile (Full-Screen)'}
+                  : 'Manifest.json & Service Worker Statis Sudah Aktif'}
               </span>
             </div>
             <p className="text-xs text-blue-800/80 dark:text-sky-300/80">
-              Berjalan layar penuh tanpa bar browser, hemat kuota, bisa dicatat saat offline, dan sinkron Cloud.
+              Pilih salah satu dari 3 metode di bawah untuk menginstal di HP atau membuat file APK.
             </p>
           </div>
           {isInstallable && !isInstalled && (
@@ -136,6 +157,17 @@ export const MobileAppInstallModal: React.FC<MobileAppInstallModalProps> = ({
         <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold">
           <button
             type="button"
+            onClick={() => setActiveTab('apk')}
+            className={`py-2 px-2.5 rounded-lg transition-colors cursor-pointer ${
+              activeTab === 'apk'
+                ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-sky-400 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400'
+            }`}
+          >
+            Solusi Buat .APK
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab('pwa')}
             className={`py-2 px-2.5 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'pwa'
@@ -143,7 +175,7 @@ export const MobileAppInstallModal: React.FC<MobileAppInstallModalProps> = ({
                 : 'text-slate-600 dark:text-slate-400'
             }`}
           >
-            1. HP Android
+            Instal Tanpa APK
           </button>
           <button
             type="button"
@@ -154,40 +186,101 @@ export const MobileAppInstallModal: React.FC<MobileAppInstallModalProps> = ({
                 : 'text-slate-600 dark:text-slate-400'
             }`}
           >
-            2. iPhone / iOS
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('apk')}
-            className={`py-2 px-2.5 rounded-lg transition-colors cursor-pointer ${
-              activeTab === 'apk'
-                ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-sky-400 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400'
-            }`}
-          >
-            3. Build File APK
+            iPhone / iOS
           </button>
         </div>
+
+        {activeTab === 'apk' && (
+          <div className="space-y-3.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
+            {/* Explanation why PWABuilder fails on AI Studio preview URLs */}
+            <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 space-y-1.5">
+              <div className="font-extrabold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Kenapa Link Preview AI Studio Ditolak PWABuilder?</span>
+              </div>
+              <p className="text-xs text-amber-800 dark:text-amber-200/90 leading-relaxed">
+                Link preview AI Studio (<code>ais-dev-...</code> / <code>ais-pre-...</code>) memiliki layar proteksi cookie Google sehingga bot eksternal seperti <strong>PWABuilder</strong> diblokir saat mencoba memindai URL secara langsung.
+              </p>
+            </div>
+
+            {/* Solution 1: WebIntoApp (Works with any URL + Icon) */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-3">
+              <h3 className="font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <Package className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>Cara 1: Buat File .APK via WebIntoApp.com (100% Berhasil)</span>
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Berbeda dengan PWABuilder, <strong>WebIntoApp.com</strong> tidak memblokir URL aplikasi dan langsung menghasilkan file <code>.apk</code> Android siap instal:
+              </p>
+              <ol className="list-decimal list-inside space-y-1.5 text-xs leading-relaxed">
+                <li>Salin URL aplikasi dan unduh ikon 512x512 melalui tombol di bawah.</li>
+                <li>Buka situs <strong>webintoapp.com/store/maker</strong> di browser.</li>
+                <li>Masukkan Nama: <strong>Keuanganku</strong>, tempel URL, dan unggah ikon 512x512.</li>
+                <li>Klik <strong>Next &rarr; Make App (Free)</strong> lalu unduh file <code>.apk</code> Android Anda.</li>
+              </ol>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleCopyUrl}
+                  className="px-3.5 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  {copiedUrl ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>URL Tersalin!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Salin URL Aplikasi</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadIcon}
+                  className="px-3.5 py-2 text-xs font-bold text-blue-700 dark:text-sky-300 bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Unduh Ikon App (512x512 PNG)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Solution 2: How to use PWABuilder after deploying to Cloud Run / Vercel / Firebase */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-2">
+              <div className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
+                Cara 2: Agar Bisa Dipindai PWABuilder (Deploy ke Cloud Run / Vercel)
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                File <code>/manifest.json</code> dan <code>/sw.js</code> statis kini sudah ditambahkan ke aplikasi ini lengkap dengan <code>screenshots</code>. Jika Anda men-deploy aplikasi ini ke <strong>Google Cloud Run</strong> (tombol Deploy di AI Studio), <strong>Vercel</strong>, atau <strong>Firebase Hosting</strong>, URL publik hasil deploy tersebut bisa langsung dimasukkan ke <strong>PWABuilder.com</strong> tanpa error.
+              </p>
+            </div>
+          </div>
+        )}
 
         {activeTab === 'pwa' && (
           <div className="space-y-3.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-2.5">
               <h3 className="font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Cara Instal Langsung di HP Android (Google Chrome)</span>
+                <span>Cara Instal Langsung di HP Android (Tanpa PWABuilder)</span>
               </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                Anda sebenarnya <strong>tidak perlu membuat file APK di PWABuilder</strong> untuk menjadikannya aplikasi di HP Android Anda:
+              </p>
               <ol className="list-decimal list-inside space-y-2 text-xs sm:text-sm leading-relaxed">
                 <li>
-                  Buka link aplikasi <strong>Keuanganku</strong> di browser <strong>Google Chrome</strong> pada HP Android Anda.
+                  Buka link aplikasi ini langsung di browser <strong>Google Chrome</strong> pada HP Android Anda.
                 </li>
                 <li>
-                  Ketuk tombol <strong>Instal Sekarang (1-Klik)</strong> di atas, atau ketuk ikon <strong>Titik Tiga (⋮)</strong> di pojok kanan atas Chrome.
+                  Ketuk ikon <strong>Titik Tiga (⋮)</strong> di pojok kanan atas browser Chrome.
                 </li>
                 <li>
-                  Pilih menu <strong>&quot;Instal aplikasi&quot; (Install app)</strong> atau <strong>&quot;Tambahkan ke Layar Utama&quot;</strong>.
+                  Pilih menu <strong>&quot;Tambahkan ke Layar Utama&quot; (Add to Home Screen)</strong> atau <strong>&quot;Instal aplikasi&quot;</strong>.
                 </li>
                 <li>
-                  Ikon <strong>Keuanganku</strong> otomatis muncul di daftar aplikasi HP Anda dan terbuka layar penuh persis seperti aplikasi native.
+                  Aplikasi <strong>Keuanganku</strong> langsung terinstal di layar HP Anda dan berjalan layar penuh tanpa bar browser.
                 </li>
               </ol>
             </div>
@@ -215,40 +308,6 @@ export const MobileAppInstallModal: React.FC<MobileAppInstallModalProps> = ({
                   Ketuk <strong>Tambah (Add)</strong> di pojok kanan atas. Aplikasi siap dibuka langsung dari Home Screen iPhone Anda.
                 </li>
               </ol>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'apk' && (
-          <div className="space-y-3.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-2.5">
-              <h3 className="font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <Package className="w-4 h-4 text-indigo-600 shrink-0" />
-                <span>Cara Mengubah Menjadi File .APK / .AAB (Play Store)</span>
-              </h3>
-              <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-                Karena aplikasi ini sudah memiliki <strong>Web App Manifest</strong> & <strong>Service Worker</strong> standar industri, Anda punya 2 cara mudah membuat file <code>.apk</code>:
-              </p>
-              <div className="space-y-2 text-xs">
-                <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-                  <div className="font-bold text-slate-900 dark:text-white">
-                    Opsi A — Tanpa Coding via PWABuilder.com (Paling Cepat)
-                  </div>
-                  <p className="text-slate-600 dark:text-slate-400 mt-0.5">
-                    Buka <strong>pwabuilder.com</strong>, tempel URL publik aplikasi ini, lalu klik <strong>Package for Store &rarr; Android</strong> untuk mengunduh file <code>.apk</code> dan <code>.aab</code> siap rilis Play Store.
-                  </p>
-                </div>
-                <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-                  <div className="font-bold text-slate-900 dark:text-white">
-                    Opsi B — Menggunakan Ionic Capacitor (Native Android Studio)
-                  </div>
-                  <code className="block mt-1.5 p-2 rounded-lg bg-slate-900 text-slate-100 font-mono text-[11px] overflow-x-auto">
-                    npm i @capacitor/core @capacitor/cli @capacitor/android{'\n'}
-                    npx cap init Keuanganku com.keuanganku.app --web-dir=dist{'\n'}
-                    npm run build && npx cap add android && npx cap open android
-                  </code>
-                </div>
-              </div>
             </div>
           </div>
         )}
