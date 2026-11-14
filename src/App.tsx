@@ -39,6 +39,7 @@ import {
   LayoutDashboard,
   ListOrdered,
   CalendarRange,
+  FileText,
 } from 'lucide-react';
 import {
   auth,
@@ -62,12 +63,15 @@ import {
   formatCompactIDR,
   formatDateID,
   formatMonthLabel,
+  getCurrentMonthKey,
+  getTodayDateString,
   AVAILABLE_MONTHS,
   INITIAL_TRANSACTIONS,
   INITIAL_SAVINGS,
   INITIAL_BUDGETS,
   INITIAL_PLANS,
 } from './utils/formatters';
+import { generateFinancialReportPDF } from './utils/pdfReport';
 import {
   deriveVaultKey,
   computeKeyFingerprint,
@@ -263,7 +267,7 @@ export default function App() {
   }, [darkMode]);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
-  const [activeMonth, setActiveMonth] = useState<string>('2026-11');
+  const [activeMonth, setActiveMonth] = useState<string>(() => getCurrentMonthKey());
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthReady, setIsAuthReady] = useState<boolean>(false);
@@ -1312,7 +1316,10 @@ export default function App() {
       type: 'expense',
       category: plan.category,
       amount: plan.estimatedCost,
-      date: plan.targetMonth.length === 10 ? plan.targetMonth : `${activeMonth}-05`,
+      date:
+        plan.targetMonth.length === 10
+          ? plan.targetMonth
+          : getTodayDateString(activeMonth),
       account: 'BCA Prioritas / Utama',
       title: `${plan.title}`.slice(0, 160),
       notes: 'Realisasi dari Perencanaan Keuangan',
@@ -1473,26 +1480,19 @@ export default function App() {
     });
   }, [monthTransactions, txTypeFilter, searchQuery]);
 
-  const handleExportCSV = () => {
-    const headers = ['Tanggal', 'Tipe', 'Kategori', 'Judul', 'Rekening', 'Nominal_IDR'];
-    const rows = monthTransactions.map((t) => [
-      t.date,
-      t.type === 'income' ? 'Pemasukan' : 'Pengeluaran',
-      `"${t.category}"`,
-      `"${isVaultLocked ? 'TERKUNCI' : t.title.replace(/"/g, '""')}"`,
-      `"${t.account}"`,
-      isVaultLocked ? '0' : String(t.amount),
-    ]);
-    const csvContent =
-      'data:text/csv;charset=utf-8,' +
-      [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Keuanganku_${activeMonth}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExportPDF = () => {
+    generateFinancialReportPDF({
+      activeMonth,
+      monthTransactions,
+      totalIncomeMonth,
+      totalExpenseMonth,
+      netCashflowMonth,
+      totalSavingsAccumulated,
+      totalNetWorth,
+      isVaultLocked,
+      userName: currentUser?.displayName,
+      userEmail: currentUser?.email,
+    });
   };
 
   if (showLandingPage) {
@@ -1961,15 +1961,25 @@ export default function App() {
                     Aktivitas pemasukan dan pengeluaran terakhir pada periode ini
                   </p>
                 </div>
-                {monthTransactions.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setActiveTab('transactions')}
-                    className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-blue-600 dark:text-sky-400 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors cursor-pointer"
+                    onClick={handleExportPDF}
+                    className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-700 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
-                    Lihat Semua ({monthTransactions.length})
+                    <FileText className="w-4 h-4 text-blue-600 dark:text-sky-400" />
+                    <span>Unduh Laporan PDF</span>
                   </button>
-                )}
+                  {monthTransactions.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('transactions')}
+                      className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-blue-600 dark:text-sky-400 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors cursor-pointer"
+                    >
+                      Lihat Semua ({monthTransactions.length})
+                    </button>
+                  )}
+                </div>
               </div>
 
               {monthTransactions.length === 0 ? (
@@ -2063,16 +2073,14 @@ export default function App() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2.5">
-                {monthTransactions.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleExportCSV}
-                    className="px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 rounded-xl inline-flex items-center gap-1.5 cursor-pointer transition-colors"
-                  >
-                    <Download className="w-4 h-4" />
-                    Unduh CSV
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={handleExportPDF}
+                  className="px-4 py-2.5 text-xs sm:text-sm font-bold text-blue-700 dark:text-sky-300 bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/70 rounded-xl inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <FileText className="w-4 h-4" />
+                  Unduh Laporan PDF
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -2097,6 +2105,51 @@ export default function App() {
                   <Plus className="w-4 h-4" />
                   Pengeluaran
                 </button>
+              </div>
+            </div>
+
+            {/* Report Totals Preview Strip with Separator Lines */}
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/60 p-4 sm:p-5 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2.5">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Rekapitulasi Laporan Transaksi — {formatMonthLabel(activeMonth)}
+                </span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                  Tanggal Hari Ini: {formatDateID(getTodayDateString())}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:divide-x divide-slate-200 dark:divide-slate-800">
+                <div className="sm:pr-3">
+                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                    Total Pemasukan ({monthTransactions.filter((t) => t.type === 'income').length} catatan)
+                  </div>
+                  <div className="text-base sm:text-lg font-extrabold font-mono tabular-nums text-emerald-600 dark:text-emerald-400 mt-0.5">
+                    +{formatIDR(totalIncomeMonth, isVaultLocked)}
+                  </div>
+                </div>
+                <div className="sm:px-4 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200 dark:border-slate-800">
+                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                    Total Pengeluaran ({monthTransactions.filter((t) => t.type === 'expense').length} catatan)
+                  </div>
+                  <div className="text-base sm:text-lg font-extrabold font-mono tabular-nums text-rose-600 dark:text-rose-400 mt-0.5">
+                    -{formatIDR(totalExpenseMonth, isVaultLocked)}
+                  </div>
+                </div>
+                <div className="sm:pl-4 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200 dark:border-slate-800">
+                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                    Total Keseluruhan (Saldo Kas Bersih)
+                  </div>
+                  <div
+                    className={`text-base sm:text-lg font-extrabold font-mono tabular-nums mt-0.5 ${
+                      netCashflowMonth >= 0
+                        ? 'text-blue-600 dark:text-sky-400'
+                        : 'text-rose-600 dark:text-rose-400'
+                    }`}
+                  >
+                    {netCashflowMonth >= 0 ? '+' : ''}
+                    {formatIDR(netCashflowMonth, isVaultLocked)}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -2276,7 +2329,7 @@ export default function App() {
               currentUser && cryptoKey && syncDatasetToCloud(currentUser, cryptoKey)
             }
             onOpenVaultModal={() => setIsVaultModalOpen(true)}
-            onExportCSV={handleExportCSV}
+            onExportPDF={handleExportPDF}
             onSignOut={handleSignOut}
             onOpenAuthModal={() => {
               setAuthModalTab('login');

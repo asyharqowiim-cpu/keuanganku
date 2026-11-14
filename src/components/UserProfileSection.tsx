@@ -36,7 +36,7 @@ interface UserProfileSectionProps {
   onUserUpdated: (user: User | null) => void;
   onSyncCloud: () => void;
   onOpenVaultModal: () => void;
-  onExportCSV: () => void;
+  onExportPDF: () => void;
   onSignOut: () => void;
   onOpenAuthModal: () => void;
 }
@@ -67,7 +67,7 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({
   onUserUpdated,
   onSyncCloud,
   onOpenVaultModal,
-  onExportCSV,
+  onExportPDF,
   onSignOut,
   onOpenAuthModal,
 }) => {
@@ -425,7 +425,7 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({
             Pengaturan Keamanan & Data Akun
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Kelola sinkronisasi Cloud, kunci privasi layar, dan pencadangan laporan CSV akun Anda.
+            Kelola sinkronisasi Cloud, kunci privasi layar, dan unduh laporan PDF lengkap akun Anda.
           </p>
         </div>
 
@@ -469,17 +469,17 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({
 
           <button
             type="button"
-            onClick={onExportCSV}
+            onClick={onExportPDF}
             className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-700 bg-slate-50/70 dark:bg-slate-800/50 text-left space-y-1.5 transition-colors cursor-pointer"
           >
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-900 dark:text-white">
-                Unduh Laporan CSV
+                Unduh Laporan PDF Lengkap
               </span>
               <Download className="w-4 h-4 text-blue-600 dark:text-sky-400" />
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Ekspor riwayat transaksi bulan aktif ke file spreadsheet CSV.
+              Ekspor rincian pemasukan, pengeluaran, serta total keseluruhan ke file PDF.
             </p>
           </button>
         </div>

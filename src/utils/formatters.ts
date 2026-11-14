@@ -100,6 +100,65 @@ export function formatDateID(dateStr: string): string {
   return `${parts[2]} ${SHORT_MONTHS[parts[1]] || parts[1]} ${parts[0]}`;
 }
 
+export function getTodayParts(): { year: string; month: string; day: string } {
+  const now = new Date();
+  const offsetMin = now.getTimezoneOffset();
+  // If browser timezone is already in Indonesian timezones (WIB UTC+7, WITA UTC+8, WIT UTC+9), use local date directly
+  if (offsetMin <= -420 && offsetMin >= -540) {
+    const year = String(now.getFullYear());
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return { year, month, day };
+  }
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(now);
+    const year =
+      parts.find((p) => p.type === 'year')?.value || String(now.getFullYear());
+    const month =
+      parts.find((p) => p.type === 'month')?.value ||
+      String(now.getMonth() + 1).padStart(2, '0');
+    const day =
+      parts.find((p) => p.type === 'day')?.value ||
+      String(now.getDate()).padStart(2, '0');
+    return { year, month, day };
+  } catch {
+    const year = String(now.getFullYear());
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return { year, month, day };
+  }
+}
+
+export function getCurrentMonthKey(): string {
+  const { year, month } = getTodayParts();
+  return `${year}-${month}`;
+}
+
+export function getTodayDateString(targetMonthKey?: string): string {
+  const { year, month, day } = getTodayParts();
+  const currentMonthKey = `${year}-${month}`;
+  if (!targetMonthKey || targetMonthKey === currentMonthKey) {
+    return `${year}-${month}-${day}`;
+  }
+  const [tYearStr, tMonthStr] = targetMonthKey.split('-');
+  const tYear = parseInt(tYearStr, 10);
+  const tMonth = parseInt(tMonthStr, 10);
+  if (!tYear || !tMonth) {
+    return `${year}-${month}-${day}`;
+  }
+  const maxDays = new Date(tYear, tMonth, 0).getDate();
+  const clampedDay = String(Math.min(parseInt(day, 10), maxDays)).padStart(
+    2,
+    '0'
+  );
+  return `${tYearStr}-${tMonthStr.padStart(2, '0')}-${clampedDay}`;
+}
+
 export function getLastSixMonths(currentMonthKey: string): string[] {
   const [yStr, mStr] = currentMonthKey.split('-');
   let year = parseInt(yStr, 10) || 2026;
@@ -136,4 +195,5 @@ export const INITIAL_SAVINGS: SavingGoalItem[] = [];
 export const INITIAL_BUDGETS: BudgetLimitItem[] = [];
 
 export const INITIAL_PLANS: FinancialPlanItem[] = [];
+
 

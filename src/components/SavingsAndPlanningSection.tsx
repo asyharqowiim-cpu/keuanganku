@@ -29,6 +29,7 @@ import {
   formatDateID,
   formatRupiahInput,
   parseRupiahInput,
+  getTodayDateString,
 } from '../utils/formatters';
 import { CurrencyInput } from './CurrencyInput';
 
@@ -124,7 +125,7 @@ export const SavingsAndPlanningSection: React.FC<SavingsAndPlanningSectionProps>
   const [planCategory, setPlanCategory] = useState(EXPENSE_CATEGORIES[0]);
   const [planCost, setPlanCost] = useState('');
   const [planAllocated, setPlanAllocated] = useState('');
-  const [planMonth, setPlanMonth] = useState(`${activeMonth}-15`);
+  const [planMonth, setPlanMonth] = useState(() => getTodayDateString(activeMonth));
   const [planPriority, setPlanPriority] = useState<PlanPriority>('medium');
   const [planError, setPlanError] = useState('');
 
@@ -226,7 +227,9 @@ export const SavingsAndPlanningSection: React.FC<SavingsAndPlanningSectionProps>
     setPlanCost(formatRupiahInput(plan.estimatedCost));
     setPlanAllocated(formatRupiahInput(plan.allocatedAmount));
     setPlanMonth(
-      plan.targetMonth.length === 7 ? `${plan.targetMonth}-15` : plan.targetMonth
+      plan.targetMonth.length === 7
+        ? getTodayDateString(plan.targetMonth)
+        : plan.targetMonth
     );
     setPlanPriority(plan.priority);
     setPlanError('');
@@ -801,6 +804,7 @@ export const SavingsAndPlanningSection: React.FC<SavingsAndPlanningSectionProps>
               setPlanTitle('');
               setPlanCost('');
               setPlanAllocated('');
+              setPlanMonth(getTodayDateString(activeMonth));
               setShowPlanForm(!showPlanForm);
             }}
             className="px-4 py-2 text-xs sm:text-sm font-bold text-white bg-slate-900 dark:bg-blue-600 hover:opacity-90 rounded-xl shadow-sm inline-flex items-center gap-1.5 cursor-pointer transition-opacity"

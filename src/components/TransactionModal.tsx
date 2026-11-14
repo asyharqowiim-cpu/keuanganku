@@ -7,7 +7,12 @@ import {
   EXPENSE_CATEGORIES,
   ACCOUNT_OPTIONS,
 } from '../types/finance';
-import { formatRupiahInput, parseRupiahInput } from '../utils/formatters';
+import {
+  formatRupiahInput,
+  parseRupiahInput,
+  getTodayDateString,
+  formatDateID,
+} from '../utils/formatters';
 import { CurrencyInput } from './CurrencyInput';
 
 interface TransactionModalProps {
@@ -41,7 +46,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
   const [account, setAccount] = useState(ACCOUNT_OPTIONS[0]);
-  const [date, setDate] = useState(`${activeMonth}-05`);
+  const [date, setDate] = useState(() => getTodayDateString(activeMonth));
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -63,7 +68,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         defaultType === 'income' ? INCOME_CATEGORIES[0] : EXPENSE_CATEGORIES[0]
       );
       setAccount(ACCOUNT_OPTIONS[0]);
-      setDate(`${activeMonth}-05`);
+      setDate(getTodayDateString(activeMonth));
       setNotes('');
     }
     setErrorMsg('');
@@ -92,7 +97,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     }
     const validDate = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date)
       ? date
-      : `${activeMonth}-05`;
+      : getTodayDateString(activeMonth);
 
     setIsSubmitting(true);
     setErrorMsg('');
@@ -190,9 +195,18 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
           />
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Tanggal Transaksi
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                Tanggal Transaksi ({formatDateID(date)})
+              </label>
+              <button
+                type="button"
+                onClick={() => setDate(getTodayDateString())}
+                className="text-[11px] font-semibold text-blue-600 dark:text-sky-400 hover:underline cursor-pointer"
+              >
+                Sesuaikan Hari Ini ({formatDateID(getTodayDateString())})
+              </button>
+            </div>
             <input
               type="date"
               required
